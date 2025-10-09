@@ -1,10 +1,12 @@
 import { MessageCircle, X } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 
 export const FloatingChat = () => {
   const [isOpen, setIsOpen] = useState(false);
+  const navigate = useNavigate();
   
   return (
     <>
@@ -53,7 +55,7 @@ export const FloatingChat = () => {
               </div>
             </div>
             
-            <Button className="w-full shadow-lg">
+            <Button className="w-full shadow-lg" onClick={() => navigate("/chat")}>
               Open Full Chat
             </Button>
           </div>
