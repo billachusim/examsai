@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Mail, Lock } from "lucide-react";
+import { useNavigate } from "react-router-dom";
+import { Mail } from "lucide-react";
 
 export const GetStarted = () => {
+  const navigate = useNavigate();
+
   return (
     <section id="get-started" className="py-20 px-4">
       <div className="max-w-md mx-auto">
@@ -20,6 +23,7 @@ export const GetStarted = () => {
             <Button 
               size="lg" 
               className="w-full text-lg py-6 shadow-lg hover:shadow-xl transition-smooth"
+              onClick={() => navigate("/chat")}
             >
               <Mail className="mr-2" />
               Continue as Guest
@@ -38,6 +42,7 @@ export const GetStarted = () => {
               size="lg" 
               variant="outline"
               className="w-full text-lg py-6 border-2 hover:bg-muted/50 transition-smooth"
+              onClick={() => navigate("/auth")}
             >
               <svg className="mr-2 w-5 h-5" viewBox="0 0 24 24">
                 <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
