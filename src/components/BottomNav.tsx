@@ -1,17 +1,14 @@
 import { Home, MessageCircle, Trophy, User } from "lucide-react";
 import { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
 
 export const BottomNav = () => {
-  const navigate = useNavigate();
-  const location = useLocation();
   const [active, setActive] = useState("home");
   
   const navItems = [
-    { id: "home", label: "Home", icon: Home, path: "/" },
-    { id: "chat", label: "Chat", icon: MessageCircle, path: "/chat" },
-    { id: "leaderboard", label: "Leaderboard", icon: Trophy, path: "/" },
-    { id: "profile", label: "Profile", icon: User, path: "/" },
+    { id: "home", label: "Home", icon: Home },
+    { id: "chat", label: "Chat", icon: MessageCircle },
+    { id: "leaderboard", label: "Leaderboard", icon: Trophy },
+    { id: "profile", label: "Profile", icon: User },
   ];
   
   return (
@@ -24,10 +21,7 @@ export const BottomNav = () => {
           return (
             <button
               key={item.id}
-              onClick={() => {
-                setActive(item.id);
-                navigate(item.path);
-              }}
+              onClick={() => setActive(item.id)}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-smooth ${
                 isActive 
                   ? "text-primary" 
