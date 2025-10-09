@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import heroImage from "@/assets/hero-image.jpg";
 
 export const Hero = () => {
+  const navigate = useNavigate();
+  
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
     element?.scrollIntoView({ behavior: "smooth" });
@@ -35,7 +38,7 @@ export const Hero = () => {
             <Button 
               size="lg" 
               className="text-lg px-8 py-6 shadow-card hover:shadow-lg transition-smooth group"
-              onClick={() => scrollToSection("get-started")}
+              onClick={() => navigate("/chat")}
             >
               <MessageCircle className="mr-2 group-hover:scale-110 transition-smooth" />
               Start Chatting with JAMB AI
