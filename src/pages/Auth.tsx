@@ -1,69 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { Mail, Lock, ArrowLeft } from "lucide-react";
+import { ArrowLeft, IdCard, User, Mail, Phone, School } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 const Auth = () => {
   const [isSignUp, setIsSignUp] = useState(false);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [generatedFacultyId, setGeneratedFacultyId] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  useEffect(() => {
-    // Check if user is already logged in
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) {
-        navigate("/chat");
-      }
-    });
-  }, [navigate]);
+  // Login form state
+  const [facultyId, setFacultyId] = useState("");
 
-  const handleAuth = async (e: React.FormEvent) => {
+  // Sign up form state
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [phoneNumber, setPhoneNumber] = useState("");
+  const [school, setSchool] = useState("");
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
 
     try {
-      if (isSignUp) {
-        const { error } = await supabase.auth.signUp({
-          email,
-          password,
-          options: {
-            emailRedirectTo: `${window.location.origin}/chat`,
-          },
-        });
-
-        if (error) throw error;
-
-        toast({
-          title: "Success!",
-          description: "Account created! Redirecting to chat...",
-        });
-        navigate("/chat");
-      } else {
-        const { error } = await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
-
-        if (error) throw error;
-
+      // TODO: Verify faculty ID with backend when ready
+      // For now, just simulate login
+      if (facultyId.trim()) {
+        localStorage.setItem("facultyId", facultyId);
         toast({
           title: "Welcome back!",
           description: "Successfully signed in.",
         });
         navigate("/chat");
+      } else {
+        throw new Error("Please enter your Faculty ID");
       }
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Authentication failed",
+        description: error.message || "Login failed",
         variant: "destructive",
       });
     } finally {
@@ -71,149 +59,245 @@ const Auth = () => {
     }
   };
 
-  const handleGoogleSignIn = async () => {
-    try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: `${window.location.origin}/chat`,
-        },
-      });
+  const handleSignUp = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
 
-      if (error) throw error;
+    try {
+      // Validate inputs
+      if (!name || !email || !phoneNumber) {
+        throw new Error("Please fill in all required fields");
+      }
+
+      // TODO: Save to backend and send notifications when ready
+      // For now, generate a mock Faculty ID
+      const newFacultyId = `FAC-${Math.floor(10000 + Math.random() * 90000)}`;
+      
+      // Store signup data temporarily
+      const signupData = {
+        facultyId: newFacultyId,
+        name,
+        email,
+        phoneNumber,
+        school,
+        createdAt: new Date().toISOString(),
+      };
+      
+      console.log("Signup data to be saved:", signupData);
+      
+      setGeneratedFacultyId(newFacultyId);
+      setShowSuccessModal(true);
+
+      toast({
+        title: "Success!",
+        description: "Your Faculty ID has been generated.",
+      });
     } catch (error: any) {
       toast({
         title: "Error",
-        description: error.message || "Google sign-in failed",
+        description: error.message || "Sign up failed",
         variant: "destructive",
       });
+    } finally {
+      setLoading(false);
     }
   };
 
+  const handleModalClose = () => {
+    setShowSuccessModal(false);
+    // Reset form
+    setName("");
+    setEmail("");
+    setPhoneNumber("");
+    setSchool("");
+    setIsSignUp(false);
+  };
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
-      <div className="w-full max-w-md space-y-6">
-        <Button
-          variant="ghost"
-          onClick={() => navigate("/")}
-          className="mb-4"
-        >
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Home
-        </Button>
-
-        <div className="text-center space-y-2">
-          <h1 className="text-3xl font-bold">
-            {isSignUp ? "Create Account" : "Welcome Back"}
-          </h1>
-          <p className="text-muted-foreground">
-            {isSignUp
-              ? "Start your JAMB prep journey"
-              : "Continue your JAMB preparation"}
-          </p>
-        </div>
-
-        <Card className="p-6 shadow-card">
-          <form onSubmit={handleAuth} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <div className="relative">
-                <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="email"
-                  type="email"
-                  placeholder="your@email.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="pl-10"
-                  required
-                />
-              </div>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
-              <div className="relative">
-                <Lock className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                <Input
-                  id="password"
-                  type="password"
-                  placeholder="••••••••"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  className="pl-10"
-                  required
-                  minLength={6}
-                />
-              </div>
-            </div>
-
-            <Button
-              type="submit"
-              className="w-full"
-              size="lg"
-              disabled={loading}
-            >
-              {loading
-                ? "Loading..."
-                : isSignUp
-                ? "Create Account"
-                : "Sign In"}
-            </Button>
-          </form>
-
-          <div className="relative my-6">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t"></div>
-            </div>
-            <div className="relative flex justify-center text-sm">
-              <span className="px-4 bg-card text-muted-foreground">
-                or continue with
-              </span>
-            </div>
-          </div>
-
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+        <div className="w-full max-w-md space-y-6">
           <Button
-            variant="outline"
-            className="w-full border-2"
-            size="lg"
-            onClick={handleGoogleSignIn}
+            variant="ghost"
+            onClick={() => navigate("/")}
+            className="mb-4"
           >
-            <svg className="mr-2 w-5 h-5" viewBox="0 0 24 24">
-              <path
-                fill="#4285F4"
-                d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-              />
-              <path
-                fill="#34A853"
-                d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-              />
-              <path
-                fill="#FBBC05"
-                d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-              />
-              <path
-                fill="#EA4335"
-                d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-              />
-            </svg>
-            Sign in with Google
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Home
           </Button>
 
-          <div className="text-center mt-6">
-            <button
-              type="button"
-              onClick={() => setIsSignUp(!isSignUp)}
-              className="text-sm text-primary hover:underline"
-            >
+          <div className="text-center space-y-2">
+            <h1 className="text-3xl font-bold">
+              {isSignUp ? "Create Account" : "Welcome Back"}
+            </h1>
+            <p className="text-muted-foreground">
               {isSignUp
-                ? "Already have an account? Sign in"
-                : "Don't have an account? Sign up"}
-            </button>
+                ? "Register to get your Faculty ID"
+                : "Sign in with your Faculty ID"}
+            </p>
           </div>
-        </Card>
+
+          <Card className="p-6 shadow-card">
+            {!isSignUp ? (
+              <form onSubmit={handleLogin} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="facultyId">Faculty ID</Label>
+                  <div className="relative">
+                    <IdCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="facultyId"
+                      type="text"
+                      placeholder="FAC-12345"
+                      value={facultyId}
+                      onChange={(e) => setFacultyId(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={loading}
+                >
+                  {loading ? "Signing in..." : "Sign In"}
+                </Button>
+              </form>
+            ) : (
+              <form onSubmit={handleSignUp} className="space-y-4">
+                <div className="space-y-2">
+                  <Label htmlFor="name">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="name"
+                      type="text"
+                      placeholder="John Doe"
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email Address</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      placeholder="your@email.com"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="phone">WhatsApp Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      placeholder="+234 800 000 0000"
+                      value={phoneNumber}
+                      onChange={(e) => setPhoneNumber(e.target.value)}
+                      className="pl-10"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="school">School (Optional)</Label>
+                  <div className="relative">
+                    <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="school"
+                      type="text"
+                      placeholder="University of Lagos"
+                      value={school}
+                      onChange={(e) => setSchool(e.target.value)}
+                      className="pl-10"
+                    />
+                  </div>
+                </div>
+
+                <Button
+                  type="submit"
+                  className="w-full"
+                  size="lg"
+                  disabled={loading}
+                >
+                  {loading ? "Creating Account..." : "Create Account"}
+                </Button>
+              </form>
+            )}
+
+            <div className="text-center mt-6">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(!isSignUp)}
+                className="text-sm text-primary hover:underline"
+              >
+                {isSignUp
+                  ? "Already have a Faculty ID? Sign in"
+                  : "Don't have a Faculty ID? Sign up"}
+              </button>
+            </div>
+          </Card>
+        </div>
       </div>
-    </div>
+
+      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-2xl text-center">
+              Registration Successful! 🎉
+            </DialogTitle>
+            <DialogDescription className="text-center pt-4">
+              Your Faculty ID has been generated. Please save it for future logins.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="flex flex-col items-center space-y-4 py-4">
+            <div className="bg-primary/10 p-6 rounded-lg border-2 border-primary/20">
+              <p className="text-sm text-muted-foreground mb-2">Your Faculty ID</p>
+              <p className="text-3xl font-bold text-primary tracking-wider">
+                {generatedFacultyId}
+              </p>
+            </div>
+            <div className="text-sm text-center text-muted-foreground space-y-2">
+              <p>✅ Confirmation email sent to {email}</p>
+              <p>✅ WhatsApp notification sent to {phoneNumber}</p>
+            </div>
+          </div>
+          <div className="flex flex-col gap-2">
+            <Button
+              onClick={() => {
+                navigator.clipboard.writeText(generatedFacultyId);
+                toast({
+                  title: "Copied!",
+                  description: "Faculty ID copied to clipboard",
+                });
+              }}
+              variant="outline"
+            >
+              Copy Faculty ID
+            </Button>
+            <Button onClick={handleModalClose}>
+              Close
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
 
