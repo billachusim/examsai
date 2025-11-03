@@ -1,8 +1,24 @@
 import { Home, MessageCircle, Trophy, User } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export const BottomNav = () => {
   const [active, setActive] = useState("home");
+  const [isSignedIn, setIsSignedIn] = useState(false);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsSignedIn(!!session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsSignedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
   
   const navItems = [
     { id: "home", label: "Home", icon: Home },
@@ -21,7 +37,16 @@ export const BottomNav = () => {
           return (
             <button
               key={item.id}
-              onClick={() => setActive(item.id)}
+              onClick={() => {
+                setActive(item.id);
+                if (item.id === "home") {
+                  navigate("/");
+                } else if (item.id === "chat") {
+                  navigate(isSignedIn ? "/chat" : "/auth");
+                } else if (item.id === "profile") {
+                  navigate(isSignedIn ? "/profile" : "/auth");
+                }
+              }}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-smooth ${
                 isActive 
                   ? "text-primary" 

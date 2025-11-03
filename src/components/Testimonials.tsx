@@ -5,26 +5,38 @@ const testimonials = [
   {
     name: "Chioma O.",
     school: "Federal Government College, Lagos",
+    exam: "JAMB",
     score: "270",
     prevScore: "180",
-    text: "JAMB AI helped me jump from 180 to 270 😭🔥. The explanations are so clear and the practice questions are exactly like the real exam!",
+    text: "ExamsAI.NG helped me jump from 180 to 270 in JAMB 😭🔥. The explanations are so clear and the practice questions are exactly like the real exam!",
     avatar: "CO"
   },
   {
     name: "Ibrahim K.",
     school: "King's College, Lagos",
-    score: "295",
-    prevScore: "220",
-    text: "Feels like chatting with my private tutor. I can ask anything at 2am and get instant help. Game changer! 🚀",
+    exam: "WAEC",
+    score: "A1",
+    prevScore: "B3",
+    text: "The WAEC AI coach is incredible! Went from B3 to A1 in Mathematics. Feels like having a private tutor 24/7! 🚀",
     avatar: "IK"
   },
   {
     name: "Blessing A.",
     school: "Queen's College, Yaba",
-    score: "312",
-    prevScore: "245",
-    text: "I was weak in Chemistry but JAMB AI broke everything down so simply. Now it's my strongest subject! Thank you 💚",
+    exam: "NECO",
+    score: "Distinction",
+    prevScore: "Credit",
+    text: "NECO Chemistry was my worst subject, but ExamsAI.NG broke everything down so simply. Now it's my strongest subject! 💚",
     avatar: "BA"
+  },
+  {
+    name: "David M.",
+    school: "Government College, Ibadan",
+    exam: "NABTEB",
+    score: "Outstanding",
+    prevScore: "Good",
+    text: "The technical questions practice helped me ace NABTEB! Best exam prep tool ever! 🎯",
+    avatar: "DM"
   }
 ];
 

@@ -2,9 +2,28 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate } from "react-router-dom";
 import { Mail } from "lucide-react";
+import { useState, useEffect } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 export const GetStarted = () => {
   const navigate = useNavigate();
+  const [isSignedIn, setIsSignedIn] = useState(false);
+
+  useEffect(() => {
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setIsSignedIn(!!session);
+    });
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      setIsSignedIn(!!session);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleContinue = () => {
+    navigate(isSignedIn ? "/chat" : "/auth");
+  };
 
   return (
     <section id="get-started" className="py-20 px-4">
@@ -14,7 +33,7 @@ export const GetStarted = () => {
             Ready to Start? 🚀
           </h2>
           <p className="text-lg text-muted-foreground">
-            Join thousands of students acing their JAMB exams
+            Join thousands of students acing their exams with AI
           </p>
         </div>
         
@@ -23,10 +42,10 @@ export const GetStarted = () => {
             <Button 
               size="lg" 
               className="w-full text-lg py-6 shadow-lg hover:shadow-xl transition-smooth"
-              onClick={() => navigate("/chat")}
+              onClick={handleContinue}
             >
               <Mail className="mr-2" />
-              Continue as Guest
+              {isSignedIn ? "Go to Chat" : "Continue as Guest"}
             </Button>
             
             <div className="relative">
