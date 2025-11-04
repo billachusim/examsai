@@ -72,7 +72,7 @@ export const GetStarted = () => {
             
             <div className="text-center">
               <button
-                onClick={() => navigate("/auth")}
+                onClick={() => navigate("/auth", { state: { showSignUp: true } })}
                 className="text-sm text-muted-foreground hover:text-primary transition-colors"
               >
                 Don't have a Faculty ID? <span className="font-semibold">Sign up here</span>

@@ -144,7 +144,7 @@ export const Hero = () => {
                 </div>
                 
                 <div 
-                  className="relative animate-float cursor-pointer"
+                  className="relative animate-float cursor-pointer transition-transform hover:scale-105"
                   onClick={() => scrollToSection("testimonials")}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${hero.color} rounded-3xl blur-3xl`} />
