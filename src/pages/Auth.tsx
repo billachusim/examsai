@@ -5,7 +5,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, IdCard, User, Mail, Phone, School } from "lucide-react";
+import { ArrowLeft, IdCard, User, Mail, Phone, School, MessageCircle } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -36,10 +36,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // TODO: Verify faculty ID with backend when ready
-      // For now, just simulate login
       if (facultyId.trim()) {
         localStorage.setItem("facultyId", facultyId);
+        localStorage.setItem("isLoggedIn", "true");
         toast({
           title: "Welcome back!",
           description: "Successfully signed in.",
@@ -69,13 +68,8 @@ const Auth = () => {
         throw new Error("Please fill in all required fields");
       }
 
-      // TODO: Save to backend and send notifications when ready
-      // For now, generate a mock Faculty ID
-      const newFacultyId = `FAC-${Math.floor(10000 + Math.random() * 90000)}`;
-      
       // Store signup data temporarily
       const signupData = {
-        facultyId: newFacultyId,
         name,
         email,
         phoneNumber,
@@ -83,14 +77,12 @@ const Auth = () => {
         createdAt: new Date().toISOString(),
       };
       
-      console.log("Signup data to be saved:", signupData);
-      
-      setGeneratedFacultyId(newFacultyId);
+      localStorage.setItem("tempUserInfo", JSON.stringify(signupData));
       setShowSuccessModal(true);
 
       toast({
         title: "Success!",
-        description: "Your Faculty ID has been generated.",
+        description: "Request your Faculty ID via WhatsApp",
       });
     } catch (error: any) {
       toast({
@@ -101,6 +93,20 @@ const Auth = () => {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleRequestFacultyId = () => {
+    const userInfo = JSON.parse(localStorage.getItem("tempUserInfo") || "{}");
+    const message = encodeURIComponent(
+      `Hi, I'd like to register for Tech Faculty.\n\n` +
+      `Name: ${name}\n` +
+      `Email: ${email}\n` +
+      `WhatsApp: ${phoneNumber}\n` +
+      `School: ${school || 'Not specified'}\n\n` +
+      `Please onboard me and provide my Faculty ID.`
+    );
+    window.open(`https://wa.me/2348068597140?text=${message}`, "_blank");
+    handleModalClose();
   };
 
   const handleModalClose = () => {
@@ -263,37 +269,29 @@ const Auth = () => {
               Registration Successful! 🎉
             </DialogTitle>
             <DialogDescription className="text-center pt-4">
-              Your Faculty ID has been generated. Please save it for future logins.
+              Request your Faculty ID to complete your registration
             </DialogDescription>
           </DialogHeader>
-          <div className="flex flex-col items-center space-y-4 py-4">
-            <div className="bg-primary/10 p-6 rounded-lg border-2 border-primary/20">
-              <p className="text-sm text-muted-foreground mb-2">Your Faculty ID</p>
-              <p className="text-3xl font-bold text-primary tracking-wider">
-                {generatedFacultyId}
+          <div className="flex flex-col space-y-4 py-4">
+            <div className="bg-primary/10 p-6 rounded-lg text-center">
+              <p className="text-muted-foreground mb-4">
+                Click the button below to send us your information via WhatsApp. 
+                We'll onboard you properly and provide your Faculty ID.
+              </p>
+              <Button
+                size="lg"
+                className="w-full"
+                onClick={handleRequestFacultyId}
+              >
+                <MessageCircle className="mr-2 h-5 w-5" />
+                Request Faculty ID via WhatsApp
+              </Button>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
+              <p className="text-sm text-blue-700 dark:text-blue-300">
+                💡 We'll respond quickly with your Faculty ID which you'll use to login and access all features.
               </p>
             </div>
-            <div className="text-sm text-center text-muted-foreground space-y-2">
-              <p>✅ Confirmation email sent to {email}</p>
-              <p>✅ WhatsApp notification sent to {phoneNumber}</p>
-            </div>
-          </div>
-          <div className="flex flex-col gap-2">
-            <Button
-              onClick={() => {
-                navigator.clipboard.writeText(generatedFacultyId);
-                toast({
-                  title: "Copied!",
-                  description: "Faculty ID copied to clipboard",
-                });
-              }}
-              variant="outline"
-            >
-              Copy Faculty ID
-            </Button>
-            <Button onClick={handleModalClose}>
-              Close
-            </Button>
           </div>
         </DialogContent>
       </Dialog>

@@ -41,8 +41,8 @@ export const ChatSidebar = ({
   return (
     <aside
       className={cn(
-        "w-64 border-r bg-card flex-shrink-0 transition-all duration-300 overflow-y-auto",
-        isOpen ? "translate-x-0" : "-translate-x-full md:translate-x-0 md:w-0 md:border-0"
+        "w-64 border-r bg-card flex-shrink-0 transition-all duration-300 overflow-y-auto fixed md:relative h-full z-50",
+        isOpen ? "translate-x-0" : "-translate-x-full"
       )}
     >
       <div className="p-4 space-y-6">

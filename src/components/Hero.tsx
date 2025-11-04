@@ -143,9 +143,12 @@ export const Hero = () => {
                   </div>
                 </div>
                 
-                <div className="relative animate-float">
+                <div 
+                  className="relative animate-float cursor-pointer"
+                  onClick={() => scrollToSection("testimonials")}
+                >
                   <div className={`absolute inset-0 bg-gradient-to-br ${hero.color} rounded-3xl blur-3xl`} />
-                  <div className="relative bg-gradient-to-br from-primary to-secondary rounded-3xl p-8 shadow-card">
+                  <div className="relative bg-gradient-to-br from-primary to-secondary rounded-3xl p-8 shadow-card hover:shadow-xl transition-all">
                     <div className="text-white text-center space-y-4">
                       <div className="text-6xl font-bold">{hero.exam}</div>
                       <div className="text-2xl font-semibold">AI Exam Coach</div>

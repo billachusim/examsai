@@ -45,17 +45,17 @@ export const Pricing = () => {
       return;
     }
 
-    // TODO: Verify Faculty ID with backend when ready
     const storedFacultyId = localStorage.getItem("facultyId");
     
     if (storedFacultyId === facultyId || facultyId.startsWith("FAC-")) {
-      // Proceed to payment
+      // Store pending faculty ID and redirect to payment page
+      localStorage.setItem("pendingFacultyId", facultyId);
       toast({
         title: "Verified!",
-        description: `Processing ${planType === "monthly" ? "₦2,000 monthly" : "₦500 day pass"} payment...`,
+        description: "Redirecting to payment options...",
       });
       setShowFacultyIdDialog(false);
-      // TODO: Integrate actual payment gateway
+      navigate("/payment");
     } else {
       toast({
         title: "Invalid Faculty ID",

@@ -19,7 +19,14 @@ const Chat = () => {
     <div className="h-screen flex flex-col bg-background">
       <ChatTopNav onToggleSidebar={() => setSidebarOpen(!sidebarOpen)} />
       
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {sidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/50 z-40 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+          />
+        )}
+        
         <ChatSidebar
           isOpen={sidebarOpen}
           selectedSubject={selectedSubject}
