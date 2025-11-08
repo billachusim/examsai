@@ -1,1 +1,10 @@
 project_id = "qmshqibcpetahlmcacjw"
+
+[functions.check-daily-limit]
+verify_jwt = false
+
+[functions.increment-question-count]
+verify_jwt = false
+
+[functions.admin-activate-user]
+verify_jwt = false

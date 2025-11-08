@@ -39,12 +39,17 @@ export const BottomNav = () => {
               key={item.id}
               onClick={() => {
                 setActive(item.id);
+                const facultyId = localStorage.getItem("facultyId");
+                const isLoggedIn = !!facultyId;
+                
                 if (item.id === "home") {
                   navigate("/");
                 } else if (item.id === "chat") {
-                  navigate(isSignedIn ? "/chat" : "/auth");
+                  navigate(isLoggedIn ? "/chat" : "/auth");
+                } else if (item.id === "leaderboard") {
+                  navigate("/leaderboard");
                 } else if (item.id === "profile") {
-                  navigate(isSignedIn ? "/profile" : "/auth");
+                  navigate(isLoggedIn ? "/profile" : "/auth");
                 }
               }}
               className={`flex flex-col items-center justify-center flex-1 h-full transition-smooth ${

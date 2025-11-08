@@ -4,8 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, IdCard, User, Mail, Phone, School, MessageCircle } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -29,6 +30,14 @@ const Auth = () => {
     }
   }, [location]);
 
+  // Check if user is already logged in
+  useEffect(() => {
+    const facultyId = localStorage.getItem("facultyId");
+    if (facultyId) {
+      navigate("/chat");
+    }
+  }, [navigate]);
+
   // Login form state
   const [facultyId, setFacultyId] = useState("");
 
@@ -43,21 +52,48 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      if (facultyId.trim()) {
-        localStorage.setItem("facultyId", facultyId);
-        localStorage.setItem("isLoggedIn", "true");
+      // Check if Faculty ID exists in database
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("faculty_id", facultyId.trim())
+        .single();
+
+      if (error || !profile) {
         toast({
-          title: "Welcome back!",
-          description: "Successfully signed in.",
+          title: "Error",
+          description: "Invalid Faculty ID. Please check and try again.",
+          variant: "destructive",
         });
-        navigate("/chat");
-      } else {
-        throw new Error("Please enter your Faculty ID");
+        setLoading(false);
+        return;
       }
-    } catch (error: any) {
+
+      // Check if account is activated
+      if (!profile.activated) {
+        toast({
+          title: "Account Not Activated",
+          description: "Please complete WhatsApp verification to activate your account.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Store session
+      localStorage.setItem("facultyId", facultyId);
+      localStorage.setItem("userName", profile.name);
+      
+      toast({
+        title: "Success!",
+        description: "You have successfully signed in.",
+      });
+      
+      navigate("/chat");
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Login failed",
+        description: "An error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -70,31 +106,61 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      // Validate inputs
-      if (!name || !email || !phoneNumber) {
-        throw new Error("Please fill in all required fields");
+      if (!name || !email || !phoneNumber || !school) {
+        toast({
+          title: "Error",
+          description: "Please fill in all fields.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
       }
 
-      // Store signup data temporarily
-      const signupData = {
-        name,
-        email,
-        phoneNumber,
-        school,
-        createdAt: new Date().toISOString(),
-      };
-      
-      localStorage.setItem("tempUserInfo", JSON.stringify(signupData));
-      setShowSuccessModal(true);
+      // Generate Faculty ID using database function
+      const { data: facultyIdData, error: idError } = await supabase
+        .rpc("generate_faculty_id");
 
-      toast({
-        title: "Success!",
-        description: "Request your Faculty ID via WhatsApp",
-      });
-    } catch (error: any) {
+      if (idError || !facultyIdData) {
+        toast({
+          title: "Error",
+          description: "Failed to generate Faculty ID. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      const newFacultyId = facultyIdData;
+
+      // Insert into profiles table
+      const { error: insertError } = await supabase
+        .from("profiles")
+        .insert({
+          faculty_id: newFacultyId,
+          name,
+          email,
+          phone_number: phoneNumber,
+          school,
+          activated: false,
+          has_paid: false,
+        });
+
+      if (insertError) {
+        toast({
+          title: "Error",
+          description: "Failed to create account. Please try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      setGeneratedFacultyId(newFacultyId);
+      setShowSuccessModal(true);
+    } catch (error) {
       toast({
         title: "Error",
-        description: error.message || "Sign up failed",
+        description: "An error occurred. Please try again.",
         variant: "destructive",
       });
     } finally {
@@ -103,22 +169,29 @@ const Auth = () => {
   };
 
   const handleRequestFacultyId = () => {
-    const userInfo = JSON.parse(localStorage.getItem("tempUserInfo") || "{}");
-    const message = encodeURIComponent(
-      `Hi, I'd like to register for Tech Faculty.\n\n` +
-      `Name: ${name}\n` +
-      `Email: ${email}\n` +
-      `WhatsApp: ${phoneNumber}\n` +
-      `School: ${school || 'Not specified'}\n\n` +
-      `Please onboard me and provide my Faculty ID.`
-    );
-    window.open(`https://wa.me/2348068597140?text=${message}`, "_blank");
-    handleModalClose();
+    const message = `Hello Tech Faculty Hub!
+
+I just signed up and need my Faculty ID activated.
+
+Name: ${name}
+Email: ${email}
+Phone: ${phoneNumber}
+School: ${school}
+Generated Faculty ID: ${generatedFacultyId}
+
+Please activate my account. Thank you!`;
+
+    const whatsappUrl = `https://wa.me/2347045601869?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, "_blank");
+    
+    toast({
+      title: "WhatsApp Opened",
+      description: "Please send the message to activate your account. You can login once activated.",
+    });
   };
 
   const handleModalClose = () => {
     setShowSuccessModal(false);
-    // Reset form
     setName("");
     setEmail("");
     setPhoneNumber("");
@@ -229,7 +302,7 @@ const Auth = () => {
                 </div>
 
                 <div className="space-y-2">
-                  <Label htmlFor="school">School (Optional)</Label>
+                  <Label htmlFor="school">School</Label>
                   <div className="relative">
                     <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
                     <Input
@@ -239,6 +312,7 @@ const Auth = () => {
                       value={school}
                       onChange={(e) => setSchool(e.target.value)}
                       className="pl-10"
+                      required
                     />
                   </div>
                 </div>
@@ -276,14 +350,14 @@ const Auth = () => {
               Registration Successful! 🎉
             </DialogTitle>
             <DialogDescription className="text-center pt-4">
-              Request your Faculty ID to complete your registration
+              Your Faculty ID: <span className="font-mono font-bold text-primary">{generatedFacultyId}</span>
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col space-y-4 py-4">
             <div className="bg-primary/10 p-6 rounded-lg text-center">
               <p className="text-muted-foreground mb-4">
                 Click the button below to send us your information via WhatsApp. 
-                We'll onboard you properly and provide your Faculty ID.
+                We'll activate your account and you can then login.
               </p>
               <Button
                 size="lg"
@@ -291,12 +365,12 @@ const Auth = () => {
                 onClick={handleRequestFacultyId}
               >
                 <MessageCircle className="mr-2 h-5 w-5" />
-                Request Faculty ID via WhatsApp
+                Request Activation via WhatsApp
               </Button>
             </div>
             <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
               <p className="text-sm text-blue-700 dark:text-blue-300">
-                💡 We'll respond quickly with your Faculty ID which you'll use to login and access all features.
+                💡 Save your Faculty ID ({generatedFacultyId}). You'll use it to login once we activate your account.
               </p>
             </div>
           </div>

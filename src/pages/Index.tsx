@@ -5,7 +5,6 @@ import { Testimonials } from "@/components/Testimonials";
 import { GetStarted } from "@/components/GetStarted";
 import { Footer } from "@/components/Footer";
 import { BottomNav } from "@/components/BottomNav";
-import { FloatingChat } from "@/components/FloatingChat";
 import heroImage from "@/assets/hero-image.jpg";
 
 const Index = () => {
@@ -59,7 +58,6 @@ const Index = () => {
       <GetStarted />
       <Footer />
       <BottomNav />
-      <FloatingChat />
       
       {/* Padding for bottom nav on mobile */}
       <div className="h-16 md:hidden" />

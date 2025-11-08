@@ -14,13 +14,98 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      daily_questions: {
+        Row: {
+          created_at: string | null
+          faculty_id: string
+          id: string
+          question_date: string | null
+          questions_count: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          faculty_id: string
+          id?: string
+          question_date?: string | null
+          questions_count?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          faculty_id?: string
+          id?: string
+          question_date?: string | null
+          questions_count?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "daily_questions_faculty_id_fkey"
+            columns: ["faculty_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["faculty_id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          activated: boolean | null
+          created_at: string | null
+          email: string
+          faculty_id: string
+          has_paid: boolean | null
+          id: string
+          last_activity: string | null
+          name: string
+          phone_number: string
+          questions_asked_today: number | null
+          school: string
+          subscription_expires_at: string | null
+          subscription_type: string | null
+          total_correct_answers: number | null
+          total_questions_asked: number | null
+        }
+        Insert: {
+          activated?: boolean | null
+          created_at?: string | null
+          email: string
+          faculty_id: string
+          has_paid?: boolean | null
+          id?: string
+          last_activity?: string | null
+          name: string
+          phone_number: string
+          questions_asked_today?: number | null
+          school: string
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          total_correct_answers?: number | null
+          total_questions_asked?: number | null
+        }
+        Update: {
+          activated?: boolean | null
+          created_at?: string | null
+          email?: string
+          faculty_id?: string
+          has_paid?: boolean | null
+          id?: string
+          last_activity?: string | null
+          name?: string
+          phone_number?: string
+          questions_asked_today?: number | null
+          school?: string
+          subscription_expires_at?: string | null
+          subscription_type?: string | null
+          total_correct_answers?: number | null
+          total_questions_asked?: number | null
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      generate_faculty_id: { Args: never; Returns: string }
     }
     Enums: {
       [_ in never]: never
