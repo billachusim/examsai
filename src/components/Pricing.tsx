@@ -6,6 +6,7 @@ import { Check, Zap, IdCard } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 import {
   Dialog,
   DialogContent,
@@ -35,7 +36,7 @@ export const Pricing = () => {
     setShowFacultyIdDialog(true);
   };
 
-  const handleFacultyIdSubmit = () => {
+  const handleFacultyIdSubmit = async () => {
     if (!facultyId.trim()) {
       toast({
         title: "Required",
@@ -45,21 +46,57 @@ export const Pricing = () => {
       return;
     }
 
-    const storedFacultyId = localStorage.getItem("facultyId");
-    
-    if (storedFacultyId === facultyId || facultyId.startsWith("FAC-")) {
-      // Store pending faculty ID and redirect to payment page
-      localStorage.setItem("pendingFacultyId", facultyId);
+    try {
+      // Check if Faculty ID exists in database
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("faculty_id", facultyId.trim())
+        .single();
+
+      if (error || !profile) {
+        toast({
+          title: "Invalid Faculty ID",
+          description: "Faculty ID not found. Please sign up first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if account is activated
+      if (!profile.activated) {
+        toast({
+          title: "Account Not Activated",
+          description: "Please complete WhatsApp verification first.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      // Check if already paid
+      if (profile.has_paid) {
+        toast({
+          title: "Already Premium",
+          description: "You already have premium access!",
+        });
+        navigate("/chat");
+        return;
+      }
+
+      // Store session and redirect
+      localStorage.setItem("facultyId", facultyId);
+      localStorage.setItem("userName", profile.name);
+      
       toast({
         title: "Verified!",
         description: "Redirecting to payment options...",
       });
       setShowFacultyIdDialog(false);
       navigate("/payment");
-    } else {
+    } catch (error) {
       toast({
-        title: "Invalid Faculty ID",
-        description: "Please check your Faculty ID and try again. Don't have one? Sign up first.",
+        title: "Error",
+        description: "An error occurred. Please try again.",
         variant: "destructive",
       });
     }

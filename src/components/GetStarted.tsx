@@ -6,13 +6,15 @@ import { useNavigate } from "react-router-dom";
 import { IdCard } from "lucide-react";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 export const GetStarted = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
   const [facultyId, setFacultyId] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  const handleLogin = () => {
+  const handleLogin = async () => {
     if (!facultyId.trim()) {
       toast({
         title: "Required",
@@ -22,14 +24,56 @@ export const GetStarted = () => {
       return;
     }
 
-    localStorage.setItem("facultyId", facultyId);
-    localStorage.setItem("isLoggedIn", "true");
-    
-    toast({
-      title: "Welcome back!",
-      description: "Redirecting to chat...",
-    });
-    navigate("/chat");
+    setLoading(true);
+
+    try {
+      // Check if Faculty ID exists in database
+      const { data: profile, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("faculty_id", facultyId.trim())
+        .single();
+
+      if (error || !profile) {
+        toast({
+          title: "Error",
+          description: "Invalid Faculty ID. Please check and try again.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Check if account is activated
+      if (!profile.activated) {
+        toast({
+          title: "Account Not Activated",
+          description: "Please complete WhatsApp verification to activate your account.",
+          variant: "destructive",
+        });
+        setLoading(false);
+        return;
+      }
+
+      // Store session
+      localStorage.setItem("facultyId", facultyId);
+      localStorage.setItem("userName", profile.name);
+      
+      toast({
+        title: "Welcome back!",
+        description: "Redirecting to chat...",
+      });
+      
+      navigate("/chat");
+    } catch (error) {
+      toast({
+        title: "Error",
+        description: "An error occurred. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -66,8 +110,9 @@ export const GetStarted = () => {
               size="lg" 
               className="w-full text-lg py-6 shadow-lg hover:shadow-xl transition-smooth"
               onClick={handleLogin}
+              disabled={loading}
             >
-              Sign In with Faculty ID
+              {loading ? "Signing in..." : "Sign In with Faculty ID"}
             </Button>
             
             <div className="text-center">

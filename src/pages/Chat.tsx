@@ -171,6 +171,12 @@ const Chat = () => {
   }
 
   const questionsLimit = profile?.has_paid ? "Unlimited" : `${questionsToday}/3`;
+  const getBadgeColor = () => {
+    if (profile?.has_paid) return "default";
+    if (questionsToday >= 3) return "destructive";
+    if (questionsToday >= 2) return "secondary";
+    return "outline";
+  };
 
   return (
     <div className="h-screen flex flex-col bg-background">
@@ -198,7 +204,18 @@ const Chat = () => {
           </div>
 
           <div className="flex items-center gap-3">
-            <Badge variant={profile?.has_paid ? "default" : "secondary"}>
+            <Badge 
+              variant={getBadgeColor()}
+              className={
+                profile?.has_paid 
+                  ? "bg-green-600 hover:bg-green-700" 
+                  : questionsToday >= 3 
+                    ? "" 
+                    : questionsToday >= 2 
+                      ? "bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+                      : ""
+              }
+            >
               {questionsLimit} today
             </Badge>
             <DropdownMenu>

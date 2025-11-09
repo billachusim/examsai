@@ -1,17 +1,52 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Copy, ExternalLink, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 export const Payment = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
   const [selectedMethod, setSelectedMethod] = useState<"flutterwave" | "bank" | null>(null);
+  const [profile, setProfile] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
 
-  const userInfo = JSON.parse(localStorage.getItem("tempUserInfo") || "{}");
-  const facultyId = localStorage.getItem("pendingFacultyId") || "";
+  useEffect(() => {
+    const facultyId = localStorage.getItem("facultyId");
+    if (!facultyId) {
+      navigate("/auth");
+      return;
+    }
+    loadProfile(facultyId);
+  }, [navigate]);
+
+  const loadProfile = async (facultyId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from("profiles")
+        .select("*")
+        .eq("faculty_id", facultyId)
+        .single();
+
+      if (error || !data) {
+        toast({
+          title: "Error",
+          description: "Failed to load profile.",
+          variant: "destructive",
+        });
+        navigate("/auth");
+        return;
+      }
+
+      setProfile(data);
+    } catch (error) {
+      console.error("Error loading profile:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const bankDetails = {
     accountName: "Tech Faculty Hub",
@@ -28,14 +63,18 @@ export const Payment = () => {
   };
 
   const handleConfirmPayment = () => {
+    if (!profile) return;
+
     const message = encodeURIComponent(
-      `Hi, I've made a payment for Tech Faculty subscription.\n\n` +
-      `Name: ${userInfo.name}\n` +
-      `Email: ${userInfo.email}\n` +
-      `Phone: ${userInfo.phone}\n` +
-      `School: ${userInfo.school}\n` +
-      `Faculty ID: ${facultyId}\n\n` +
-      `Please confirm my payment and activate my account.`
+      `Hello Tech Faculty Hub!\n\n` +
+      `I've made a payment for premium access.\n\n` +
+      `Faculty ID: ${profile.faculty_id}\n` +
+      `Name: ${profile.name}\n` +
+      `Email: ${profile.email}\n` +
+      `Phone: ${profile.phone_number}\n` +
+      `School: ${profile.school}\n` +
+      `Payment Method: ${selectedMethod === "flutterwave" ? "Flutterwave" : "Bank Transfer"}\n\n` +
+      `Please activate my premium access. Thank you!`
     );
     window.open(`https://wa.me/2348068597140?text=${message}`, "_blank");
     
@@ -44,6 +83,17 @@ export const Payment = () => {
       description: "We'll confirm your payment shortly!",
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
+          <p className="mt-4 text-muted-foreground">Loading...</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background py-20 px-4">
@@ -57,7 +107,9 @@ export const Payment = () => {
           {/* Flutterwave Option */}
           <Card 
             className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
-              selectedMethod === "flutterwave" ? "border-primary border-2" : ""
+              selectedMethod === "flutterwave" 
+                ? "border-primary border-2 bg-gradient-to-br from-primary/5 to-transparent" 
+                : ""
             }`}
             onClick={() => setSelectedMethod("flutterwave")}
           >
@@ -78,7 +130,9 @@ export const Payment = () => {
           {/* Bank Transfer Option */}
           <Card 
             className={`p-6 cursor-pointer transition-all hover:shadow-lg ${
-              selectedMethod === "bank" ? "border-primary border-2" : ""
+              selectedMethod === "bank" 
+                ? "border-primary border-2 bg-gradient-to-br from-primary/5 to-transparent" 
+                : ""
             }`}
             onClick={() => setSelectedMethod("bank")}
           >

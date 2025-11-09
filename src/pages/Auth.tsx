@@ -181,7 +181,7 @@ Generated Faculty ID: ${generatedFacultyId}
 
 Please activate my account. Thank you!`;
 
-    const whatsappUrl = `https://wa.me/2347045601869?text=${encodeURIComponent(message)}`;
+    const whatsappUrl = `https://wa.me/2348068597140?text=${encodeURIComponent(message)}`;
     window.open(whatsappUrl, "_blank");
     
     toast({

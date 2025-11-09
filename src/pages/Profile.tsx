@@ -132,8 +132,11 @@ const Profile = () => {
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Subscription Status</h3>
             <Badge 
-              variant={profile?.has_paid ? "default" : "secondary"}
-              className={profile?.has_paid ? "bg-green-600 hover:bg-green-700" : ""}
+              className={
+                profile?.has_paid 
+                  ? "bg-green-600 hover:bg-green-700 text-white border-green-500" 
+                  : "bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
+              }
             >
               {profile?.has_paid ? "Premium" : "Free"}
             </Badge>
