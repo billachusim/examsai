@@ -30,13 +30,14 @@ const Auth = () => {
     }
   }, [location]);
 
-  // Check if user is already logged in
+  // Check if user is already logged in (but not when explicitly showing signup)
   useEffect(() => {
     const facultyId = localStorage.getItem("facultyId");
-    if (facultyId) {
+    // Only redirect if user is logged in AND not trying to sign up
+    if (facultyId && !location.state?.showSignUp) {
       navigate("/chat");
     }
-  }, [navigate]);
+  }, [navigate, location.state]);
 
   // Login form state
   const [facultyId, setFacultyId] = useState("");
