@@ -13,7 +13,7 @@ import {
   AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient } from "@/lib/backendClient";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { FullPageSpinner } from "@/components/RequireAuth";
@@ -58,7 +58,7 @@ const Profile = () => {
 
   const save = async () => {
     setSaving(true);
-    const { error: err } = await supabase
+    const { error: err } = await backendClient
       .from("profiles")
       .update({ full_name: fullName.trim(), school: school.trim() || null, phone: phone.trim() || null, exam_target: exam })
       .eq("id", me.user.id);
@@ -116,7 +116,9 @@ const Profile = () => {
           </div>
           {me.premium.active ? (
             <p className="text-muted-foreground">
-              Premium until {new Date(me.premium.expiresAt!).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })}.
+              {me.premium.expiresAt
+                ? `Premium until ${new Date(me.premium.expiresAt).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })}.`
+                : "Premium active."}
             </p>
           ) : (
             <>

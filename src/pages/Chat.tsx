@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient } from "@/lib/backendClient";
 import { PaymentModal } from "@/components/chat/PaymentModal";
 import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
@@ -43,7 +43,7 @@ const Chat = () => {
       /* ignore */
     }
     let cancelled = false;
-    supabase
+    backendClient
       .from("tutor_messages")
       .select("role, content, created_at")
       .eq("subject_slug", subject)
@@ -51,7 +51,7 @@ const Chat = () => {
       .limit(40)
       .then(({ data }) => {
         if (cancelled) return;
-        const history = ((data ?? []) as Message[]).reverse();
+        const history = (data ?? []).reverse();
         setMessages([
           {
             role: "assistant",
