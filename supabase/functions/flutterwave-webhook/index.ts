@@ -14,7 +14,8 @@ function safeEqual(a: string, b: string): boolean {
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response(null, { headers: corsHeaders });
-  const expected = Deno.env.get("FLW_WEBHOOK_HASH");
+  const expected = Deno.env.get("FLW_WEBHOOK_HASH") ?? Deno.env.get("FLUTTERWAVE_WEBHOOK_HASH") ??
+    Deno.env.get("FLW_SECRET_HASH") ?? Deno.env.get("FLUTTERWAVE_SECRET_HASH");
   const got = req.headers.get("verif-hash") ?? "";
   if (!expected || !safeEqual(got, expected)) return new Response("unauthorized", { status: 401 });
 

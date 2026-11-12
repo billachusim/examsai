@@ -5,7 +5,8 @@ import { PLANS, type PlanId } from "./config.ts";
 const FLW_API = "https://api.flutterwave.com/v3";
 
 function secretKey(): string {
-  const key = Deno.env.get("FLW_SECRET_KEY");
+  // Accept the names Lovable or a person may have used for the same key.
+  const key = Deno.env.get("FLW_SECRET_KEY") ?? Deno.env.get("FLUTTERWAVE_SECRET_KEY");
   if (!key) throw new HttpError(503, "Online payment is not set up yet.", "payments_not_configured");
   return key;
 }
