@@ -1,0 +1,55 @@
+{
+  "version": 1,
+  "sdk_version": "3.5.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://qmshqibcpetahlmcacjw.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "examsng",
+      "version": "0.1.0",
+      "title": "ExamsNG"
+    },
+    "tools": [
+      {
+        "name": "list_subjects",
+        "title": "List exam subjects",
+        "description": "List the study subjects available in ExamsNG.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "get_study_profile",
+        "title": "Read my study profile",
+        "description": "Read the connected student's name, school, main exam and chosen subjects; requires completed account migration.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "https://json-schema.org/draft/2020-12/schema",
+          "type": "object",
+          "properties": {},
+          "additionalProperties": false
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

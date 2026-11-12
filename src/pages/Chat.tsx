@@ -11,6 +11,8 @@ import { AppHeader } from "@/components/AppHeader";
 import { BottomNav } from "@/components/BottomNav";
 import { useMe } from "@/hooks/useAuth";
 import { ApiError, callFunction, SUBJECTS, subjectName } from "@/lib/api";
+import { useWebMCP } from "use-webmcp-tool";
+import { runWebMCPTool } from "@/lib/webmcp-telemetry";
 
 interface Message {
   role: "user" | "assistant";
@@ -35,6 +37,25 @@ const Chat = () => {
   const [sending, setSending] = useState(false);
   const [paywall, setPaywall] = useState<string | null>(null);
   const endRef = useRef<HTMLDivElement>(null);
+
+  const selectSubject = (slug: string) => {
+    if (typeof slug !== "string" || !SUBJECTS.some(s => s.slug === slug)) throw new Error("Unknown study subject.");
+    if (sending) throw new Error("Wait for the current reply.");
+    setSubject(slug);
+  };
+  useWebMCP({
+    name: "read_tutor_view",
+    description: "Read the selected subject and messages currently visible in the tutor.",
+    annotations: { readOnlyHint: true, untrustedContentHint: true },
+    execute: () => runWebMCPTool("read_tutor_view", () => `${subject}: ${subjectName(subject)}\n${messages.length ? messages.map(m => `${m.role}: ${m.content}`).join("\n") : "Chat history is loading."}`),
+  });
+  useWebMCP({
+    name: "select_tutor_subject",
+    description: "Change the tutor to one of the available study subjects without sending a message.",
+    enabled: !sending,
+    inputSchema: { type: "object", properties: { subject: { type: "string", enum: SUBJECTS.map(s => s.slug), description: "Study subject slug." } }, required: ["subject"] },
+    execute: ({ subject: slug }: { subject: string }) => runWebMCPTool("select_tutor_subject", () => { selectSubject(slug); return `Selected ${subjectName(slug)}.`; }),
+  });
 
   useEffect(() => {
     try {
@@ -118,7 +139,8 @@ const Chat = () => {
                 key={s.slug}
                 variant={subject === s.slug ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSubject(s.slug)}
+                onClick={() => selectSubject(s.slug)}
+                disabled={sending}
                 className="whitespace-nowrap flex-shrink-0"
               >
                 {s.name}
