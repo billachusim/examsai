@@ -4,16 +4,16 @@ import type { MeResponse } from "@/lib/api";
 
 type Profile = NonNullable<MeResponse["profile"]>;
 
-export interface TutorMessage {
+export type TutorMessage = {
   role: "user" | "assistant";
   content: string;
   created_at: string;
   subject_slug: string;
   user_id: string;
   id: string;
-}
+};
 
-export interface LeaderboardRow {
+export type LeaderboardRow = {
   rank: number;
   first_name: string;
   school: string;
@@ -21,7 +21,7 @@ export interface LeaderboardRow {
   answered: number;
   accuracy: number;
   is_me: boolean;
-}
+};
 
 type BackendDatabase = {
   public: {
