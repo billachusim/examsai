@@ -53,6 +53,7 @@ served. Answers are never sent before submission.
 | `report-question` | `{ questionId, reason? }` | `{ ok }` |
 | `flutterwave-init` | `{ plan, redirectUrl? }` | `{ link, txRef }` (open `link`) |
 | `flutterwave-verify` | `{ transactionId?, txRef? }` | `{ granted, status, expiresAt }` |
+| `verify-purchase` | `{ platform: "android", productId, purchaseToken }` or `{ platform: "ios", productId, transactionId }` | `{ granted, expiresAt }` |
 | `delete-account` | `{}` | `{ deleted: true }` |
 
 Errors are `{ error, code }`. `code = "limit_reached"` (HTTP 402) means show the paywall.
@@ -65,5 +66,13 @@ full_name, phone, school, exam_target, subjects), `tutor_messages`, `attempts`,
 `attempt_answers`, `entitlements`, `payments`, `daily_usage`, `subjects`, and
 `rpc('get_leaderboard')`.
 
-Still to add for the mobile app: `verify-purchase` for Google Play and App Store
-receipts (grants the same entitlement).
+## Store purchases (mobile app)
+
+Products: `examsai_day_pass` (1 day) and `examsai_premium_monthly` (30 days). On Google
+Play create them as one-time (consumable) in-app products; on the App Store as
+non-renewing subscriptions. Secrets for `verify-purchase`:
+
+- `GOOGLE_PLAY_SERVICE_ACCOUNT_JSON`: the Play service-account key JSON (the account needs
+  access to the ExamsAi app in Play Console).
+- `APPLE_IAP_KEY_ID`, `APPLE_IAP_ISSUER_ID`, `APPLE_IAP_PRIVATE_KEY`: an In-App Purchase key
+  from App Store Connect > Users and Access > Integrations.
