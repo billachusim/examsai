@@ -12,8 +12,8 @@ matters (limits, marking, premium) happens inside the functions.
 2. Auth settings (Lovable Cloud > Users > Auth): enable Email, and Google if you want
    the Google button. Add the site URL and `/reset-password` as redirect URLs.
 3. Secrets (Lovable Cloud > Secrets):
-   - `FLW_SECRET_KEY`: Flutterwave secret key (live).
-   - `FLW_WEBHOOK_HASH`: any long random string; put the same in Flutterwave >
+   - `FLW_SECRET_KEY` (or `FLUTTERWAVE_SECRET_KEY`): Flutterwave secret key (live).
+   - `FLW_WEBHOOK_HASH` (or `FLUTTERWAVE_WEBHOOK_HASH` / `FLW_SECRET_HASH`): any long random string; put the same in Flutterwave >
      Settings > Webhooks, with URL `https://qmshqibcpetahlmcacjw.supabase.co/functions/v1/flutterwave-webhook`.
    - `EXAMSAI_SITE_URL`: the live site, e.g. `https://examsai.ng`.
    - `LOVABLE_API_KEY` is provided by Lovable Cloud for the AI tutor.
