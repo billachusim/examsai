@@ -93,6 +93,12 @@ export const Footer = () => {
                 </a>
               </li>
               <li>
+                <a href="/terms" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
+                  <FileText className="w-4 h-4" />
+                  Terms of Service
+                </a>
+              </li>
+              <li>
                 <a href="/delete-account" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
                   <FileText className="w-4 h-4" />
                   Delete your account

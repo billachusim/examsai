@@ -16,6 +16,7 @@ import Mock from "./pages/Mock";
 import Profile from "./pages/Profile";
 import Leaderboard from "./pages/Leaderboard";
 import Privacy from "./pages/Privacy";
+import Terms from "./pages/Terms";
 import DeleteAccountInfo from "./pages/DeleteAccountInfo";
 import NotFound from "./pages/NotFound";
 import OAuthConsent from "./pages/OAuthConsent";
@@ -42,6 +43,7 @@ const App = () => (
             <Route path="/profile" element={<RequireAuth><Profile /></RequireAuth>} />
             <Route path="/leaderboard" element={<Leaderboard />} />
             <Route path="/privacy" element={<Privacy />} />
+            <Route path="/terms" element={<Terms />} />
             <Route path="/delete-account" element={<DeleteAccountInfo />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
