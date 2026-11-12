@@ -1,5 +1,5 @@
 import { defineTool } from "@lovable.dev/mcp-js";
-import { SUBJECTS } from "../../api";
+import { SUBJECTS } from "../../examSubjects";
 
 export default defineTool({
   name: "list_subjects",
