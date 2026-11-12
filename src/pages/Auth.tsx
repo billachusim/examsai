@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { oauthReturnPath } from "@/lib/oauth-return-path";
 
 type Mode = "signin" | "signup" | "forgot";
 
@@ -31,7 +32,8 @@ const Auth = () => {
   const [school, setSchool] = useState("");
   const [checkEmail, setCheckEmail] = useState(false);
 
-  const from = (location.state as { from?: string } | null)?.from ?? "/chat";
+  const next = new URLSearchParams(location.search).get("next");
+  const from = oauthReturnPath(next ?? (location.state as { from?: string } | null)?.from ?? "/chat");
 
   useEffect(() => {
     if (session) navigate(from, { replace: true });
@@ -57,7 +59,7 @@ const Auth = () => {
       email: email.trim(),
       password,
       options: {
-        emailRedirectTo: `${window.location.origin}/chat`,
+        emailRedirectTo: new URL(from, window.location.origin).href,
         data: { full_name: fullName.trim(), phone: phone.trim(), school: school.trim() },
       },
     });

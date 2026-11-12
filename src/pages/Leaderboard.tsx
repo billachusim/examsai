@@ -4,18 +4,8 @@ import { ArrowLeft, Award, Medal, Trophy } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { supabase } from "@/integrations/supabase/client";
+import { backendClient, type LeaderboardRow } from "@/lib/backendClient";
 import { BottomNav } from "@/components/BottomNav";
-
-interface Row {
-  rank: number;
-  first_name: string;
-  school: string;
-  correct: number;
-  answered: number;
-  accuracy: number;
-  is_me: boolean;
-}
 
 const rankIcon = (i: number) =>
   i === 0 ? <Trophy className="h-6 w-6 text-yellow-500" /> :
@@ -25,12 +15,12 @@ const rankIcon = (i: number) =>
 
 const Leaderboard = () => {
   const navigate = useNavigate();
-  const [rows, setRows] = useState<Row[]>([]);
+  const [rows, setRows] = useState<LeaderboardRow[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.rpc("get_leaderboard", { p_limit: 20 }).then(({ data }) => {
-      setRows((data as Row[]) ?? []);
+    backendClient.rpc("get_leaderboard", { p_limit: 20 }).then(({ data }) => {
+      setRows(data ?? []);
       setLoading(false);
     });
   }, []);
