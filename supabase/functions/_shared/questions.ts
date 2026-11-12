@@ -16,6 +16,27 @@ export interface QuestionRow {
   source: string;
 }
 
+/**
+ * Turns model output into plain text the apps can show as-is. Underlined letters
+ * (<u>oo</u>, <ins>, **oo**, __oo__) become [oo]; any other tags are dropped and
+ * common entities decoded.
+ */
+export function plainText(input: unknown): string {
+  return String(input ?? "")
+    .replace(/&nbsp;/g, " ")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'")
+    .replace(/&amp;/g, "&")
+    .replace(/<\s*(u|ins)\b[^>]*>([\s\S]*?)<\s*\/\s*\1\s*>/gi, "[$2]")
+    .replace(/__([^_\n]+?)__/g, "[$1]")
+    .replace(/\*\*([^*\n]+?)\*\*/g, "$1")
+    .replace(/<br\s*\/?>/gi, "\n")
+    .replace(/<\/?[a-z][^>]*>/gi, "")
+    .trim();
+}
+
 /** What a client may see before submitting: no answer, no explanation. */
 export function publicQuestion(q: QuestionRow) {
   return {
@@ -24,8 +45,8 @@ export function publicQuestion(q: QuestionRow) {
     topic: q.topic,
     exam: q.exam,
     year: q.year,
-    stem: q.stem,
-    options: q.options,
+    stem: plainText(q.stem),
+    options: q.options.map((o) => ({ key: o.key, text: plainText(o.text) })),
     difficulty: q.difficulty,
   };
 }
@@ -119,7 +140,9 @@ export async function generateQuestions(
     `unambiguous, with exactly one correct option and options ${optionKeys}. ` +
     `Use Nigerian context where natural (names, places, naira). Write maths in plain text ` +
     `(x^2, sqrt(3), 3/4), never LaTeX. Explanations: 1 to 4 short sentences showing the working ` +
-    `or the rule, written for a 16-year-old.`;
+    `or the rule, written for a 16-year-old. Plain text only: no HTML, no markdown. ` +
+    `For letters that would be underlined (e.g. vowel-sound questions), put them in square brackets, ` +
+    `like fl[oo]d, and say "the letters in brackets" in the question.`;
 
   const user =
     `Write ${n} ${subjectName} questions` +
@@ -164,9 +187,9 @@ function normaliseGenerated(
   if (!q || typeof q.stem !== "string" || !q.stem.trim()) return null;
   let options: { key: string; text: string }[];
   if (Array.isArray(q.options)) {
-    options = q.options.map((o) => ({ key: String(o.key).toUpperCase(), text: String(o.text) }));
+    options = q.options.map((o) => ({ key: String(o.key).toUpperCase(), text: plainText(o.text) }));
   } else if (q.options && typeof q.options === "object") {
-    options = Object.entries(q.options).map(([k, v]) => ({ key: k.toUpperCase(), text: String(v) }));
+    options = Object.entries(q.options).map(([k, v]) => ({ key: k.toUpperCase(), text: plainText(v) }));
   } else {
     return null;
   }
@@ -181,10 +204,10 @@ function normaliseGenerated(
     topic: (q.topic ?? opts.topic ?? null)?.toString().slice(0, 120) ?? null,
     exam: opts.exam,
     year: null,
-    stem: q.stem.trim(),
+    stem: plainText(q.stem),
     options,
     answer,
-    explanation: String(q.explanation ?? "").trim(),
+    explanation: plainText(q.explanation),
     difficulty,
     source: "ai",
   };
