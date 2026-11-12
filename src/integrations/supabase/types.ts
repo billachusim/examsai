@@ -14,89 +14,255 @@ export type Database = {
   }
   public: {
     Tables: {
-      daily_questions: {
+      attempt_answers: {
         Row: {
-          created_at: string | null
-          faculty_id: string
-          id: string
-          question_date: string | null
-          questions_count: number | null
+          attempt_id: string
+          question_id: string
+          user_id: string
+          subject_slug: string
+          topic: string | null
+          chosen: string | null
+          is_correct: boolean
+          answered_at: string
         }
         Insert: {
-          created_at?: string | null
-          faculty_id: string
-          id?: string
-          question_date?: string | null
-          questions_count?: number | null
+          attempt_id: string
+          question_id: string
+          user_id: string
+          subject_slug: string
+          topic?: string | null
+          chosen?: string | null
+          is_correct: boolean
+          answered_at?: string
         }
         Update: {
-          created_at?: string | null
-          faculty_id?: string
-          id?: string
-          question_date?: string | null
-          questions_count?: number | null
+          attempt_id?: string
+          question_id?: string
+          user_id?: string
+          subject_slug?: string
+          topic?: string | null
+          chosen?: string | null
+          is_correct?: boolean
+          answered_at?: string
         }
-        Relationships: [
-          {
-            foreignKeyName: "daily_questions_faculty_id_fkey"
-            columns: ["faculty_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["faculty_id"]
-          },
-        ]
+        Relationships: []
+      }
+      attempts: {
+        Row: {
+          id: string
+          user_id: string
+          mode: string
+          exam: string
+          subjects: string[]
+          question_ids: string[]
+          time_limit_seconds: number | null
+          started_at: string
+          submitted_at: string | null
+          score: number | null
+          total: number
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          mode: string
+          exam?: string
+          subjects: string[]
+          question_ids: string[]
+          time_limit_seconds?: number | null
+          started_at?: string
+          submitted_at?: string | null
+          score?: number | null
+          total: number
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          mode?: string
+          exam?: string
+          subjects?: string[]
+          question_ids?: string[]
+          time_limit_seconds?: number | null
+          started_at?: string
+          submitted_at?: string | null
+          score?: number | null
+          total?: number
+        }
+        Relationships: []
+      }
+      daily_usage: {
+        Row: {
+          user_id: string
+          day: string
+          tutor_messages: number
+          practice_questions: number
+        }
+        Insert: {
+          user_id: string
+          day?: string
+          tutor_messages?: number
+          practice_questions?: number
+        }
+        Update: {
+          user_id?: string
+          day?: string
+          tutor_messages?: number
+          practice_questions?: number
+        }
+        Relationships: []
+      }
+      entitlements: {
+        Row: {
+          user_id: string
+          plan: string
+          expires_at: string
+          source: string
+          updated_at: string
+        }
+        Insert: {
+          user_id: string
+          plan: string
+          expires_at: string
+          source: string
+          updated_at?: string
+        }
+        Update: {
+          user_id?: string
+          plan?: string
+          expires_at?: string
+          source?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      payments: {
+        Row: {
+          id: string
+          user_id: string | null
+          provider: string
+          reference: string
+          plan: string
+          amount: number | null
+          currency: string | null
+          status: string
+          provider_transaction_id: string | null
+          raw: Json | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          user_id?: string | null
+          provider: string
+          reference: string
+          plan: string
+          amount?: number | null
+          currency?: string | null
+          status?: string
+          provider_transaction_id?: string | null
+          raw?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string | null
+          provider?: string
+          reference?: string
+          plan?: string
+          amount?: number | null
+          currency?: string | null
+          status?: string
+          provider_transaction_id?: string | null
+          raw?: Json | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       profiles: {
         Row: {
-          activated: boolean | null
-          created_at: string | null
-          email: string
-          faculty_id: string
-          has_paid: boolean | null
           id: string
-          last_activity: string | null
-          name: string
-          phone_number: string
-          questions_asked_today: number | null
-          school: string
-          subscription_expires_at: string | null
-          subscription_type: string | null
-          total_correct_answers: number | null
-          total_questions_asked: number | null
+          faculty_id: string
+          full_name: string
+          phone: string | null
+          school: string | null
+          exam_target: string
+          subjects: string[]
+          legacy_faculty_id: string | null
+          created_at: string
+          updated_at: string
         }
         Insert: {
-          activated?: boolean | null
-          created_at?: string | null
-          email: string
+          id: string
           faculty_id: string
-          has_paid?: boolean | null
-          id?: string
-          last_activity?: string | null
-          name: string
-          phone_number: string
-          questions_asked_today?: number | null
-          school: string
-          subscription_expires_at?: string | null
-          subscription_type?: string | null
-          total_correct_answers?: number | null
-          total_questions_asked?: number | null
+          full_name?: string
+          phone?: string | null
+          school?: string | null
+          exam_target?: string
+          subjects?: string[]
+          legacy_faculty_id?: string | null
+          created_at?: string
+          updated_at?: string
         }
         Update: {
-          activated?: boolean | null
-          created_at?: string | null
-          email?: string
-          faculty_id?: string
-          has_paid?: boolean | null
           id?: string
-          last_activity?: string | null
+          faculty_id?: string
+          full_name?: string
+          phone?: string | null
+          school?: string | null
+          exam_target?: string
+          subjects?: string[]
+          legacy_faculty_id?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      subjects: {
+        Row: {
+          slug: string
+          name: string
+          exams: string[]
+          sort_order: number
+        }
+        Insert: {
+          slug: string
+          name: string
+          exams?: string[]
+          sort_order?: number
+        }
+        Update: {
+          slug?: string
           name?: string
-          phone_number?: string
-          questions_asked_today?: number | null
-          school?: string
-          subscription_expires_at?: string | null
-          subscription_type?: string | null
-          total_correct_answers?: number | null
-          total_questions_asked?: number | null
+          exams?: string[]
+          sort_order?: number
+        }
+        Relationships: []
+      }
+      tutor_messages: {
+        Row: {
+          id: string
+          user_id: string
+          subject_slug: string
+          role: string
+          content: string
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          user_id: string
+          subject_slug: string
+          role: string
+          content: string
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          user_id?: string
+          subject_slug?: string
+          role?: string
+          content?: string
+          created_at?: string
         }
         Relationships: []
       }
@@ -105,7 +271,18 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      generate_faculty_id: { Args: never; Returns: string }
+      get_leaderboard: {
+        Args: { p_limit?: number }
+        Returns: {
+          rank: number
+          first_name: string
+          school: string
+          correct: number
+          answered: number
+          accuracy: number
+          is_me: boolean
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never

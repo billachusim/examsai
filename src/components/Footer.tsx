@@ -87,15 +87,15 @@ export const Footer = () => {
             <h4 className="font-semibold mb-4">Legal</h4>
             <ul className="space-y-2 text-sm">
               <li>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
+                <a href="/privacy" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
                   <Shield className="w-4 h-4" />
                   Privacy Policy
                 </a>
               </li>
               <li>
-                <a href="#" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
+                <a href="/delete-account" className="text-muted-foreground hover:text-primary transition-smooth flex items-center gap-2">
                   <FileText className="w-4 h-4" />
-                  Terms of Service
+                  Delete your account
                 </a>
               </li>
             </ul>

@@ -1,7 +1,6 @@
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
 import { Pricing } from "@/components/Pricing";
-import { Testimonials } from "@/components/Testimonials";
 import { GetStarted } from "@/components/GetStarted";
 import { Footer } from "@/components/Footer";
 import { BottomNav } from "@/components/BottomNav";
@@ -21,9 +20,9 @@ const Index = () => {
                 Study Smarter, Not Harder 📚
               </h2>
               <p className="text-lg text-muted-foreground">
-                Join thousands of Nigerian students who are transforming their exam preparation 
-                with AI-powered learning. Get personalized practice, instant feedback, and 
-                expert guidance - all at your fingertips.
+                Ask the AI tutor anything in your subjects, practise questions with instant marking and
+                explanations, and sit timed CBT mock exams. Start free with 3 tutor questions and 20
+                practice questions every day.
               </p>
               <div className="flex flex-wrap gap-4 text-sm">
                 <div className="flex items-center gap-2">
@@ -53,7 +52,6 @@ const Index = () => {
       </section>
       
       <HowItWorks />
-      <Testimonials />
       <Pricing />
       <GetStarted />
       <Footer />
