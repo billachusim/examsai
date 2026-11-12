@@ -3,7 +3,7 @@
 import { handler, HttpError, json, readJson } from "../_shared/cors.ts";
 import { adminClient, requireUser } from "../_shared/supabase.ts";
 import { SUBJECT_NAMES } from "../_shared/config.ts";
-import type { QuestionRow } from "../_shared/questions.ts";
+import { plainText, type QuestionRow } from "../_shared/questions.ts";
 
 const GRACE_SECONDS = 90;
 
@@ -78,12 +78,12 @@ Deno.serve(handler(async (req) => {
       questionId: r.q.id,
       subject: r.q.subject_slug,
       topic: r.q.topic,
-      stem: r.q.stem,
-      options: r.q.options,
+      stem: plainText(r.q.stem),
+      options: r.q.options.map((o) => ({ key: o.key, text: plainText(o.text) })),
       chosen: r.chosen,
       answer: r.q.answer,
       isCorrect: r.isCorrect,
-      explanation: r.q.explanation,
+      explanation: plainText(r.q.explanation),
     })),
   });
 }));
