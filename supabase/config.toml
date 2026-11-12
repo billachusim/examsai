@@ -1,10 +1,30 @@
 project_id = "qmshqibcpetahlmcacjw"
 
-[functions.check-daily-limit]
+# Every function checks the user's token itself (requireUser), so the gateway
+# JWT check is off. The webhook is authenticated by Flutterwave's verif-hash.
+[functions.me]
 verify_jwt = false
 
-[functions.increment-question-count]
+[functions.tutor-chat]
 verify_jwt = false
 
-[functions.admin-activate-user]
+[functions.start-practice]
+verify_jwt = false
+
+[functions.submit-attempt]
+verify_jwt = false
+
+[functions.report-question]
+verify_jwt = false
+
+[functions.flutterwave-init]
+verify_jwt = false
+
+[functions.flutterwave-verify]
+verify_jwt = false
+
+[functions.flutterwave-webhook]
+verify_jwt = false
+
+[functions.delete-account]
 verify_jwt = false

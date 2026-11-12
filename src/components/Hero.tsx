@@ -1,8 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { MessageCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 
@@ -11,9 +10,9 @@ const examHeroes = [
     exam: "JAMB",
     title: "Chat with JAMB AI",
     subtitle: "Your Smart UTME Exam Coach",
-    description: "Practice real JAMB questions, get instant feedback, and prepare smarter. It's like chatting with a senior who already passed! 🎓",
-    stat1: "2,547+ students practicing",
-    stat2: "10,000+ questions answered",
+    description: "Practise JAMB-style questions, get instant marking, and prepare smarter. It's like chatting with a senior who already passed! 🎓",
+    stat1: "AI tutor for every UTME subject",
+    stat2: "Timed CBT mock exams",
     color: "from-primary/20 to-secondary/20"
   },
   {
@@ -21,8 +20,8 @@ const examHeroes = [
     title: "Chat with WAEC AI",
     subtitle: "Your Smart WASSCE Exam Coach",
     description: "Master WAEC questions with AI guidance. Get detailed explanations and practice like never before! 📚",
-    stat1: "1,800+ students preparing",
-    stat2: "8,500+ questions solved",
+    stat1: "Step-by-step explanations",
+    stat2: "Instant marking",
     color: "from-blue-500/20 to-purple-500/20"
   },
   {
@@ -30,8 +29,8 @@ const examHeroes = [
     title: "Chat with NECO AI",
     subtitle: "Your Smart SSCE Exam Coach",
     description: "Ace your NECO exams with personalized AI tutoring. Study smarter, not harder! 🚀",
-    stat1: "1,200+ active learners",
-    stat2: "6,000+ practice questions",
+    stat1: "Practice by topic",
+    stat2: "Track your weak topics",
     color: "from-green-500/20 to-teal-500/20"
   },
   {
@@ -39,34 +38,22 @@ const examHeroes = [
     title: "Chat with NABTEB AI",
     subtitle: "Your Smart Technical Exam Coach",
     description: "Excel in your NABTEB exams with AI-powered practice and instant feedback! 💡",
-    stat1: "900+ students enrolled",
-    stat2: "5,000+ questions mastered",
+    stat1: "Ask anything, any time",
+    stat2: "Free to start",
     color: "from-orange-500/20 to-red-500/20"
   }
 ];
 
 export const Hero = () => {
   const navigate = useNavigate();
-  const [isSignedIn, setIsSignedIn] = useState(false);
+  const { session } = useAuth();
+  const isSignedIn = !!session;
   
   const [emblaRef] = useEmblaCarousel(
     { loop: true },
     [Autoplay({ delay: 5000, stopOnInteraction: false })]
   );
 
-  useEffect(() => {
-    // Check initial auth state
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setIsSignedIn(!!session);
-    });
-
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      setIsSignedIn(!!session);
-    });
-
-    return () => subscription.unsubscribe();
-  }, []);
   
   const scrollToSection = (sectionId: string) => {
     const element = document.getElementById(sectionId);
@@ -145,7 +132,7 @@ export const Hero = () => {
                 
                 <div 
                   className="relative animate-float cursor-pointer transition-transform hover:scale-105"
-                  onClick={() => scrollToSection("testimonials")}
+                  onClick={handleStartChat}
                 >
                   <div className={`absolute inset-0 bg-gradient-to-br ${hero.color} rounded-3xl blur-3xl`} />
                   <div className="relative bg-gradient-to-br from-primary to-secondary rounded-3xl p-8 shadow-card hover:shadow-xl transition-all">

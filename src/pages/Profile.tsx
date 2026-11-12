@@ -1,233 +1,216 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useQueryClient } from "@tanstack/react-query";
+import { BookOpenCheck, CheckCircle, Crown, LogOut, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, LogOut, Trophy, MessageCircle, CheckCircle } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Progress } from "@/components/ui/progress";
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription,
+  AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
+import { AppHeader } from "@/components/AppHeader";
+import { BottomNav } from "@/components/BottomNav";
+import { FullPageSpinner } from "@/components/RequireAuth";
+import { useAuth, useMe } from "@/hooks/useAuth";
+import { callFunction } from "@/lib/api";
+
+const EXAMS = ["JAMB", "WAEC", "NECO"] as const;
 
 const Profile = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [profile, setProfile] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
+  const queryClient = useQueryClient();
+  const { signOut } = useAuth();
+  const { data: me, isLoading, error } = useMe();
+  const [fullName, setFullName] = useState("");
+  const [school, setSchool] = useState("");
+  const [phone, setPhone] = useState("");
+  const [exam, setExam] = useState<(typeof EXAMS)[number]>("JAMB");
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
-    const facultyId = localStorage.getItem("facultyId");
-    if (!facultyId) {
-      navigate("/auth");
-      return;
+    if (me?.profile) {
+      setFullName(me.profile.full_name ?? "");
+      setSchool(me.profile.school ?? "");
+      setPhone(me.profile.phone ?? "");
+      setExam(me.profile.exam_target ?? "JAMB");
     }
+  }, [me?.profile]);
 
-    loadProfile(facultyId);
-  }, [navigate]);
-
-  const loadProfile = async (facultyId: string) => {
-    try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("faculty_id", facultyId)
-        .single();
-
-      if (error || !data) {
-        toast({
-          title: "Error",
-          description: "Failed to load profile.",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
-
-      setProfile(data);
-    } catch (error) {
-      console.error("Error loading profile:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("facultyId");
-    localStorage.removeItem("userName");
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
-    navigate("/");
-  };
-
-  const calculateAccuracy = () => {
-    if (!profile || profile.total_questions_asked === 0) return 0;
-    return Math.round((profile.total_correct_answers / profile.total_questions_asked) * 100);
-  };
-
-  if (loading) {
+  if (isLoading) return <FullPageSpinner label="Loading profile..." />;
+  if (error || !me) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading profile...</p>
-        </div>
+      <div className="min-h-screen flex items-center justify-center p-4">
+        <Card className="p-6 text-center space-y-3">
+          <p>We couldn't load your profile.</p>
+          <Button onClick={() => queryClient.invalidateQueries({ queryKey: ["me"] })}>Try again</Button>
+        </Card>
       </div>
     );
   }
 
-  const questionsLimit = profile?.has_paid ? "Unlimited" : "3/day";
-  const questionsToday = profile?.questions_asked_today || 0;
-  const maxDaily = profile?.has_paid ? "∞" : 3;
+  const save = async () => {
+    setSaving(true);
+    const { error: err } = await supabase
+      .from("profiles")
+      .update({ full_name: fullName.trim(), school: school.trim() || null, phone: phone.trim() || null, exam_target: exam })
+      .eq("id", me.user.id);
+    setSaving(false);
+    if (err) toast({ title: "Couldn't save", description: err.message, variant: "destructive" });
+    else {
+      toast({ title: "Saved" });
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    }
+  };
+
+  const deleteAccount = async () => {
+    setDeleting(true);
+    try {
+      await callFunction("delete-account");
+      await signOut();
+      toast({ title: "Account deleted", description: "Your account and data have been removed." });
+      navigate("/", { replace: true });
+    } catch (e) {
+      toast({ title: "Couldn't delete", description: e instanceof Error ? e.message : "", variant: "destructive" });
+    } finally {
+      setDeleting(false);
+    }
+  };
+
+  const totalAnswered = me.progress.reduce((n, p) => n + p.answered, 0);
+  const totalCorrect = me.progress.reduce((n, p) => n + p.correct, 0);
+  const accuracy = totalAnswered ? Math.round((100 * totalCorrect) / totalAnswered) : 0;
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <div className="border-b bg-card">
-        <div className="container max-w-4xl mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => navigate("/")}
-              className="gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Home
-            </Button>
-            <h1 className="text-xl font-bold">My Profile</h1>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={handleLogout}
-              className="gap-2 text-destructive hover:text-destructive"
-            >
-              <LogOut className="h-4 w-4" />
-              Logout
-            </Button>
+      <AppHeader title="My Profile" />
+      <div className="container max-w-4xl mx-auto px-4 py-6 space-y-6 pb-24">
+        <Card className="p-6 text-center space-y-3">
+          <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto flex items-center justify-center text-3xl font-bold text-white">
+            {(me.profile?.full_name || me.user.email || "S").charAt(0).toUpperCase()}
           </div>
-        </div>
-      </div>
-
-      {/* Profile Content */}
-      <div className="container max-w-4xl mx-auto px-4 py-8 space-y-6">
-        {/* Faculty ID Card */}
-        <Card className="p-6">
-          <div className="text-center space-y-4">
-            <div className="w-20 h-20 rounded-full bg-gradient-to-br from-primary to-secondary mx-auto flex items-center justify-center text-3xl font-bold text-white">
-              {profile?.name?.charAt(0).toUpperCase()}
-            </div>
-            <div>
-              <h2 className="text-2xl font-bold">{profile?.name}</h2>
-              <p className="text-muted-foreground">{profile?.email}</p>
-            </div>
-            <div className="inline-block bg-muted px-6 py-3 rounded-lg">
-              <p className="text-sm text-muted-foreground mb-1">Faculty ID</p>
-              <p className="text-2xl font-mono font-bold text-primary">{profile?.faculty_id}</p>
-            </div>
+          <div>
+            <h2 className="text-2xl font-bold">{me.profile?.full_name || "Student"}</h2>
+            <p className="text-muted-foreground">{me.user.email}</p>
           </div>
+          {me.profile?.faculty_id && (
+            <p className="text-sm text-muted-foreground">
+              Student ID: <span className="font-mono font-semibold text-primary">{me.profile.faculty_id}</span>
+            </p>
+          )}
         </Card>
 
-        {/* Subscription Status */}
-        <Card className="p-6">
-          <div className="flex items-center justify-between mb-4">
-            <h3 className="text-lg font-semibold">Subscription Status</h3>
-            <Badge 
-              className={
-                profile?.has_paid 
-                  ? "bg-green-600 hover:bg-green-700 text-white border-green-500" 
-                  : "bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
-              }
-            >
-              {profile?.has_paid ? "Premium" : "Free"}
+        <Card className="p-6 space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-lg font-semibold">Plan</h3>
+            <Badge className={me.premium.active ? "bg-green-600 text-white" : ""} variant={me.premium.active ? "default" : "outline"}>
+              {me.premium.active ? "Premium" : "Free"}
             </Badge>
           </div>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">School</span>
-              <span className="font-medium">{profile?.school}</span>
-            </div>
-            <div className="flex justify-between items-center">
-              <span className="text-muted-foreground">Daily Question Limit</span>
-              <span className="font-medium">{questionsLimit}</span>
-            </div>
-            {!profile?.has_paid && (
-              <Button 
-                onClick={() => navigate("/payment")}
-                className="w-full mt-4 bg-gradient-to-r from-primary to-secondary hover:opacity-90"
-              >
-                Upgrade to Premium
-              </Button>
-            )}
-          </div>
+          {me.premium.active ? (
+            <p className="text-muted-foreground">
+              Premium until {new Date(me.premium.expiresAt!).toLocaleDateString("en-NG", { day: "numeric", month: "long", year: "numeric" })}.
+            </p>
+          ) : (
+            <>
+              <p className="text-muted-foreground">
+                Today: {me.usage.tutorUsed}/{me.usage.tutorLimit} tutor questions, {me.usage.practiceUsed}/{me.usage.practiceLimit} practice questions.
+              </p>
+              <Button onClick={() => navigate("/payment")} className="w-full"><Crown className="h-4 w-4 mr-2" />Go Premium</Button>
+            </>
+          )}
         </Card>
 
-        {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center">
-                <MessageCircle className="h-6 w-6 text-primary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Questions Today</p>
-                <p className="text-2xl font-bold">{questionsToday}/{maxDaily}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-secondary/10 flex items-center justify-center">
-                <Trophy className="h-6 w-6 text-secondary" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Total Questions</p>
-                <p className="text-2xl font-bold">{profile?.total_questions_asked || 0}</p>
-              </div>
-            </div>
-          </Card>
-
-          <Card className="p-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-green-500/10 flex items-center justify-center">
-                <CheckCircle className="h-6 w-6 text-green-600" />
-              </div>
-              <div>
-                <p className="text-sm text-muted-foreground">Accuracy</p>
-                <p className="text-2xl font-bold">{calculateAccuracy()}%</p>
-              </div>
-            </div>
-          </Card>
+          <Stat icon={BookOpenCheck} label="Questions answered" value={String(totalAnswered)} />
+          <Stat icon={CheckCircle} label="Accuracy" value={`${accuracy}%`} />
+          <Stat icon={MessageCircle} label="Tutor questions today" value={String(me.usage.tutorUsed)} />
         </div>
 
-        {/* Account Info */}
-        <Card className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Account Information</h3>
-          <div className="space-y-3">
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Phone Number</span>
-              <span className="font-medium">{profile?.phone_number}</span>
-            </div>
-            <div className="flex justify-between items-center py-2 border-b">
-              <span className="text-muted-foreground">Member Since</span>
-              <span className="font-medium">
-                {new Date(profile?.created_at).toLocaleDateString()}
-              </span>
-            </div>
-            <div className="flex justify-between items-center py-2">
-              <span className="text-muted-foreground">Last Activity</span>
-              <span className="font-medium">
-                {new Date(profile?.last_activity).toLocaleDateString()}
-              </span>
+        <Card className="p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Progress by subject</h3>
+          {me.progress.length === 0 ? (
+            <p className="text-muted-foreground">
+              No practice yet. <button className="text-primary hover:underline" onClick={() => navigate("/practice")}>Start a practice session</button> to see your progress.
+            </p>
+          ) : (
+            me.progress.map((p) => (
+              <div key={p.subject} className="space-y-1">
+                <div className="flex justify-between text-sm">
+                  <span className="font-medium">{p.name}</span>
+                  <span className="text-muted-foreground">{p.correct}/{p.answered} · {p.accuracy}%</span>
+                </div>
+                <Progress value={p.accuracy} />
+                {p.weakTopics.length > 0 && (
+                  <p className="text-xs text-muted-foreground">
+                    Work on: {p.weakTopics.map((t) => `${t.topic} (${t.accuracy}%)`).join(", ")}
+                  </p>
+                )}
+              </div>
+            ))
+          )}
+        </Card>
+
+        <Card className="p-6 space-y-4">
+          <h3 className="text-lg font-semibold">Your details</h3>
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2"><Label htmlFor="fn">Full name</Label><Input id="fn" value={fullName} onChange={(e) => setFullName(e.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="sc">School</Label><Input id="sc" value={school} onChange={(e) => setSchool(e.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="ph">WhatsApp number</Label><Input id="ph" value={phone} onChange={(e) => setPhone(e.target.value)} /></div>
+            <div className="space-y-2">
+              <Label>Main exam</Label>
+              <div className="flex gap-2">
+                {EXAMS.map((x) => (
+                  <Button key={x} type="button" size="sm" variant={exam === x ? "default" : "outline"} onClick={() => setExam(x)}>{x}</Button>
+                ))}
+              </div>
             </div>
           </div>
+          <Button onClick={save} disabled={saving}>{saving ? "Saving..." : "Save changes"}</Button>
+        </Card>
+
+        <Card className="p-6 space-y-3">
+          <Button variant="outline" className="w-full" onClick={async () => { await signOut(); navigate("/"); }}>
+            <LogOut className="h-4 w-4 mr-2" />Sign out
+          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="ghost" className="w-full text-destructive hover:text-destructive">Delete my account</Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Delete your account?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This permanently removes your account, chats, scores and any remaining Premium time. It can't be undone.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={deleteAccount} disabled={deleting} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+                  {deleting ? "Deleting..." : "Delete permanently"}
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Card>
       </div>
-
-      {/* Bottom spacing for mobile nav */}
-      <div className="h-20 md:h-0" />
+      <BottomNav />
     </div>
   );
 };
+
+const Stat = ({ icon: Icon, label, value }: { icon: typeof CheckCircle; label: string; value: string }) => (
+  <Card className="p-5 flex items-center gap-3">
+    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center"><Icon className="h-6 w-6 text-primary" /></div>
+    <div><p className="text-sm text-muted-foreground">{label}</p><p className="text-2xl font-bold">{value}</p></div>
+  </Card>
+);
 
 export default Profile;

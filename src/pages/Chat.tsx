@@ -1,303 +1,164 @@
-import { useState, useEffect, useRef } from "react";
-import { useNavigate } from "react-router-dom";
-import { Send, ArrowLeft, Home, LogOut, User as UserIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { Send } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { PaymentModal } from "@/components/chat/PaymentModal";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-
-export type Subject = "English" | "Mathematics" | "Physics" | "Chemistry" | "Biology" | 
-  "Government" | "Economics" | "Literature" | "Commerce" | "CRS/IRS" | "Geography";
+import { AppHeader } from "@/components/AppHeader";
+import { BottomNav } from "@/components/BottomNav";
+import { useMe } from "@/hooks/useAuth";
+import { ApiError, callFunction, SUBJECTS, subjectName } from "@/lib/api";
 
 interface Message {
   role: "user" | "assistant";
   content: string;
 }
 
-const SUBJECTS: Subject[] = [
-  "English",
-  "Mathematics",
-  "Physics",
-  "Chemistry",
-  "Biology",
-  "Government",
-  "Economics",
-  "Literature",
-  "Commerce",
-  "CRS/IRS",
-  "Geography",
-];
+const STORAGE_KEY = "examsai.chatSubject";
 
 const Chat = () => {
-  const navigate = useNavigate();
   const { toast } = useToast();
-  const [selectedSubject, setSelectedSubject] = useState<Subject>("English");
+  const queryClient = useQueryClient();
+  const { data: me } = useMe();
+  const [subject, setSubject] = useState<string>(() => {
+    try {
+      return localStorage.getItem(STORAGE_KEY) || "english";
+    } catch {
+      return "english";
+    }
+  });
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [profile, setProfile] = useState<any>(null);
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [questionsToday, setQuestionsToday] = useState(0);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [sending, setSending] = useState(false);
+  const [paywall, setPaywall] = useState<string | null>(null);
+  const endRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const facultyId = localStorage.getItem("facultyId");
-    if (!facultyId) {
-      navigate("/auth");
-      return;
-    }
-    loadProfile(facultyId);
-  }, [navigate]);
-
-  useEffect(() => {
-    // Initial greeting when subject changes
-    setMessages([
-      {
-        role: "assistant",
-        content: `Welcome! 🎓 I'm your AI tutor for ${selectedSubject}. Ask me anything about this subject, and I'll help you prepare for your exams!`,
-      },
-    ]);
-  }, [selectedSubject]);
-
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
-
-  const loadProfile = async (facultyId: string) => {
     try {
-      const { data, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("faculty_id", facultyId)
-        .single();
-
-      if (error || !data) {
-        toast({
-          title: "Error",
-          description: "Failed to load profile.",
-          variant: "destructive",
-        });
-        navigate("/auth");
-        return;
-      }
-
-      setProfile(data);
-      setQuestionsToday(data.questions_asked_today || 0);
-    } catch (error) {
-      console.error("Error loading profile:", error);
+      localStorage.setItem(STORAGE_KEY, subject);
+    } catch {
+      /* ignore */
     }
-  };
+    let cancelled = false;
+    supabase
+      .from("tutor_messages")
+      .select("role, content, created_at")
+      .eq("subject_slug", subject)
+      .order("created_at", { ascending: false })
+      .limit(40)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const history = ((data ?? []) as Message[]).reverse();
+        setMessages([
+          {
+            role: "assistant",
+            content: `Hi! I'm your ${subjectName(subject)} tutor. Ask me any topic or paste a past question, and I'll explain it step by step.`,
+          },
+          ...history.map((m) => ({ role: m.role, content: m.content })),
+        ]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [subject]);
 
-  const handleSend = async () => {
-    if (!input.trim() || loading) return;
+  useEffect(() => {
+    endRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, sending]);
 
-    // Check if user can ask questions
-    if (!profile?.has_paid && questionsToday >= 3) {
-      setShowPaymentModal(true);
-      return;
-    }
+  const usage = me?.usage;
+  const left = usage?.tutorLimit != null ? Math.max(0, usage.tutorLimit - usage.tutorUsed) : null;
 
-    const userMessage: Message = { role: "user", content: input };
-    setMessages((prev) => [...prev, userMessage]);
+  const send = async () => {
+    const text = input.trim();
+    if (!text || sending) return;
+    setMessages((prev) => [...prev, { role: "user", content: text }]);
     setInput("");
-    setLoading(true);
-
-    // Simulate AI response (replace with actual AI API call)
-    setTimeout(async () => {
-      const aiResponse = generateResponse(input, selectedSubject);
-      setMessages((prev) => [...prev, { role: "assistant", content: aiResponse }]);
-
-      // Update question count
-      if (!profile?.has_paid) {
-        const newCount = questionsToday + 1;
-        setQuestionsToday(newCount);
-
-        // Update in database
-        await supabase
-          .from("profiles")
-          .update({ 
-            questions_asked_today: newCount,
-            total_questions_asked: (profile?.total_questions_asked || 0) + 1,
-            last_activity: new Date().toISOString()
-          })
-          .eq("faculty_id", profile?.faculty_id);
-
-        if (newCount >= 3) {
-          setTimeout(() => setShowPaymentModal(true), 2000);
-        }
+    setSending(true);
+    try {
+      const res = await callFunction<{ reply: string }>("tutor-chat", {
+        subject,
+        message: text,
+        exam: me?.profile?.exam_target ?? "JAMB",
+      });
+      setMessages((prev) => [...prev, { role: "assistant", content: res.reply }]);
+      queryClient.invalidateQueries({ queryKey: ["me"] });
+    } catch (e) {
+      setMessages((prev) => prev.slice(0, -1));
+      setInput(text);
+      if (e instanceof ApiError && e.code === "limit_reached") {
+        setPaywall(e.message);
       } else {
-        // Update total questions for paid users
-        await supabase
-          .from("profiles")
-          .update({ 
-            total_questions_asked: (profile?.total_questions_asked || 0) + 1,
-            last_activity: new Date().toISOString()
-          })
-          .eq("faculty_id", profile?.faculty_id);
+        toast({ title: "Not sent", description: e instanceof Error ? e.message : "Please try again.", variant: "destructive" });
       }
-
-      setLoading(false);
-    }, 1000);
-  };
-
-  const handleLogout = () => {
-    localStorage.removeItem("facultyId");
-    localStorage.removeItem("userName");
-    toast({
-      title: "Logged Out",
-      description: "You have been successfully logged out.",
-    });
-    navigate("/");
-  };
-
-  if (!profile) {
-    return (
-      <div className="h-screen flex items-center justify-center bg-background">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto"></div>
-          <p className="mt-4 text-muted-foreground">Loading...</p>
-        </div>
-      </div>
-    );
-  }
-
-  const questionsLimit = profile?.has_paid ? "Unlimited" : `${questionsToday}/3`;
-  const getBadgeColor = () => {
-    if (profile?.has_paid) return "default";
-    if (questionsToday >= 3) return "destructive";
-    if (questionsToday >= 2) return "secondary";
-    return "outline";
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
-    <div className="h-screen flex flex-col bg-background">
-      {/* Top Navigation */}
-      <div className="border-b bg-card px-4 py-3">
-        <div className="flex items-center justify-between max-w-6xl mx-auto">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => navigate("/")}
-              className="md:hidden"
-            >
-              <Home className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              onClick={() => navigate("/")}
-              className="hidden md:flex gap-2"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              Home
-            </Button>
-            <h1 className="text-lg font-bold ml-2">JAMB AI Tutor</h1>
-          </div>
+    <div className="h-[100dvh] flex flex-col bg-background">
+      <AppHeader
+        title="AI Tutor"
+        right={
+          <Badge variant={left === 0 ? "destructive" : "outline"} className={me?.premium.active ? "bg-green-600 text-white border-green-600" : ""}>
+            {me?.premium.active ? "Premium" : left != null ? `${left} free left today` : ""}
+          </Badge>
+        }
+      />
 
-          <div className="flex items-center gap-3">
-            <Badge 
-              variant={getBadgeColor()}
-              className={
-                profile?.has_paid 
-                  ? "bg-green-600 hover:bg-green-700" 
-                  : questionsToday >= 3 
-                    ? "" 
-                    : questionsToday >= 2 
-                      ? "bg-amber-100 dark:bg-amber-900/20 text-amber-800 dark:text-amber-200 border-amber-300 dark:border-amber-700"
-                      : ""
-              }
-            >
-              {questionsLimit} today
-            </Badge>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="ghost" size="icon" className="rounded-full">
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback className="bg-gradient-to-br from-primary to-secondary text-white">
-                      {profile?.name?.charAt(0).toUpperCase()}
-                    </AvatarFallback>
-                  </Avatar>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={() => navigate("/profile")}>
-                  <UserIcon className="mr-2 h-4 w-4" />
-                  Profile
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleLogout} className="text-destructive">
-                  <LogOut className="mr-2 h-4 w-4" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-        </div>
-      </div>
-
-      {/* Subject Chips */}
       <div className="border-b bg-card">
         <div className="overflow-x-auto">
           <div className="flex gap-2 p-3 max-w-6xl mx-auto">
-            {SUBJECTS.map((subject) => (
+            {SUBJECTS.map((s) => (
               <Button
-                key={subject}
-                variant={selectedSubject === subject ? "default" : "outline"}
+                key={s.slug}
+                variant={subject === s.slug ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedSubject(subject)}
+                onClick={() => setSubject(s.slug)}
                 className="whitespace-nowrap flex-shrink-0"
               >
-                {subject}
+                {s.name}
               </Button>
             ))}
           </div>
         </div>
       </div>
 
-      {/* Chat Messages */}
       <div className="flex-1 overflow-y-auto p-4 bg-gradient-to-b from-background to-muted/20">
         <div className="max-w-4xl mx-auto space-y-4">
           {messages.map((msg, idx) => (
-            <div
-              key={idx}
-              className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-            >
+            <div key={idx} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
               <div
-                className={`max-w-[80%] md:max-w-[70%] rounded-2xl px-4 py-3 shadow-soft ${
+                className={`max-w-[85%] md:max-w-[70%] rounded-2xl px-4 py-3 shadow-soft ${
                   msg.role === "user"
                     ? "bg-gradient-to-br from-primary to-secondary text-white rounded-br-none"
                     : "bg-card border rounded-bl-none"
                 }`}
               >
-                <p className="text-sm md:text-base whitespace-pre-wrap">{msg.content}</p>
+                <p className="text-sm md:text-base whitespace-pre-wrap break-words">{msg.content.replace(/\*\*(.+?)\*\*/g, "$1")}</p>
               </div>
             </div>
           ))}
-          {loading && (
+          {sending && (
             <div className="flex justify-start">
               <div className="bg-card border rounded-2xl rounded-bl-none px-4 py-3">
                 <div className="flex gap-1">
                   <div className="w-2 h-2 bg-primary rounded-full animate-bounce" />
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-100" />
-                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce delay-200" />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:100ms]" />
+                  <div className="w-2 h-2 bg-primary rounded-full animate-bounce [animation-delay:200ms]" />
                 </div>
               </div>
             </div>
           )}
-          <div ref={messagesEndRef} />
+          <div ref={endRef} />
         </div>
       </div>
 
-      {/* Input Area */}
-      <div className="border-t bg-card p-4">
+      <div className="border-t bg-card p-4 pb-20 md:pb-4">
         <div className="flex gap-2 max-w-4xl mx-auto">
           <Textarea
             value={input}
@@ -305,43 +166,24 @@ const Chat = () => {
             onKeyDown={(e) => {
               if (e.key === "Enter" && !e.shiftKey) {
                 e.preventDefault();
-                handleSend();
+                send();
               }
             }}
-            placeholder={`Ask about ${selectedSubject}...`}
+            placeholder={`Ask about ${subjectName(subject)}...`}
             className="min-h-[44px] max-h-32 resize-none"
-            disabled={loading}
+            maxLength={2000}
+            disabled={sending}
           />
-          <Button
-            onClick={handleSend}
-            size="icon"
-            className="h-11 w-11 rounded-full shrink-0"
-            disabled={loading}
-          >
+          <Button onClick={send} size="icon" className="h-11 w-11 rounded-full shrink-0" disabled={sending || !input.trim()} aria-label="Send">
             <Send className="w-5 h-5" />
           </Button>
         </div>
-        {!profile?.has_paid && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            {questionsToday}/3 free questions used today
-          </p>
-        )}
       </div>
 
-      <PaymentModal
-        isOpen={showPaymentModal}
-        onClose={() => setShowPaymentModal(false)}
-      />
-
-      {/* Bottom spacing for mobile nav */}
-      <div className="h-16 md:hidden" />
+      <PaymentModal isOpen={!!paywall} message={paywall ?? undefined} onClose={() => setPaywall(null)} />
+      <BottomNav />
     </div>
   );
 };
-
-// Simulated AI response generator
-function generateResponse(input: string, subject: Subject): string {
-  return `Great question about ${subject}! Let me explain:\n\n${input} is an important topic. Here are the key points you need to know:\n\n1. Understanding the fundamentals\n2. Common exam patterns\n3. Practice applications\n\nWould you like me to give you a practice question on this topic?`;
-}
 
 export default Chat;

@@ -10,8 +10,8 @@ const features = [
   },
   {
     icon: FileText,
-    title: "Practice Past Questions",
-    description: "Get real-time marking and detailed answers. Know exactly where you went wrong and how to improve.",
+    title: "Practise and Get Marked",
+    description: "Answer exam-style questions and get instant marking with explanations. Know exactly where you went wrong and how to improve.",
     color: "from-secondary/20 to-secondary/5"
   },
   {

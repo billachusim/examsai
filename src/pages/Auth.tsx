@@ -1,384 +1,227 @@
-import { useState, useEffect } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft, Lock, Mail, Phone, School, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
-import { ArrowLeft, IdCard, User, Mail, Phone, School, MessageCircle } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+import { useAuth } from "@/hooks/useAuth";
+
+type Mode = "signin" | "signup" | "forgot";
+
+const GoogleIcon = () => (
+  <svg viewBox="0 0 24 24" className="h-5 w-5" aria-hidden="true">
+    <path fill="#EA4335" d="M12 10.2v3.9h5.5c-.2 1.3-1.6 3.8-5.5 3.8-3.3 0-6-2.7-6-6.1s2.7-6.1 6-6.1c1.9 0 3.1.8 3.8 1.5l2.6-2.5C16.8 3.2 14.6 2.2 12 2.2 6.6 2.2 2.2 6.6 2.2 12s4.4 9.8 9.8 9.8c5.7 0 9.4-4 9.4-9.6 0-.6-.1-1.1-.2-1.6H12z" />
+  </svg>
+);
 
 const Auth = () => {
   const location = useLocation();
-  const [isSignUp, setIsSignUp] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [generatedFacultyId, setGeneratedFacultyId] = useState("");
   const navigate = useNavigate();
   const { toast } = useToast();
-
-  useEffect(() => {
-    if (location.state?.showSignUp) {
-      setIsSignUp(true);
-    }
-  }, [location]);
-
-  // Check if user is already logged in (but not when explicitly showing signup)
-  useEffect(() => {
-    const facultyId = localStorage.getItem("facultyId");
-    // Only redirect if user is logged in AND not trying to sign up
-    if (facultyId && !location.state?.showSignUp) {
-      navigate("/chat");
-    }
-  }, [navigate, location.state]);
-
-  // Login form state
-  const [facultyId, setFacultyId] = useState("");
-
-  // Sign up form state
-  const [name, setName] = useState("");
+  const { session } = useAuth();
+  const [mode, setMode] = useState<Mode>(location.state?.showSignUp ? "signup" : "signin");
+  const [loading, setLoading] = useState(false);
+  const [fullName, setFullName] = useState("");
   const [email, setEmail] = useState("");
-  const [phoneNumber, setPhoneNumber] = useState("");
+  const [password, setPassword] = useState("");
+  const [phone, setPhone] = useState("");
   const [school, setSchool] = useState("");
+  const [checkEmail, setCheckEmail] = useState(false);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const from = (location.state as { from?: string } | null)?.from ?? "/chat";
+
+  useEffect(() => {
+    if (session) navigate(from, { replace: true });
+  }, [session, from, navigate]);
+
+  const fail = (description: string) => toast({ title: "Couldn't continue", description, variant: "destructive" });
+
+  const handleSignIn = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-
-    try {
-      // Check if Faculty ID exists in database
-      const { data: profile, error } = await supabase
-        .from("profiles")
-        .select("*")
-        .eq("faculty_id", facultyId.trim())
-        .single();
-
-      if (error || !profile) {
-        toast({
-          title: "Error",
-          description: "Invalid Faculty ID. Please check and try again.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Check if account is activated
-      if (!profile.activated) {
-        toast({
-          title: "Account Not Activated",
-          description: "Please complete WhatsApp verification to activate your account.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Store session
-      localStorage.setItem("facultyId", facultyId);
-      localStorage.setItem("userName", profile.name);
-      
-      toast({
-        title: "Success!",
-        description: "You have successfully signed in.",
-      });
-      
-      navigate("/chat");
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
+    const { error } = await supabase.auth.signInWithPassword({ email: email.trim(), password });
+    setLoading(false);
+    if (error) {
+      fail(error.message.includes("Invalid login") ? "Wrong email or password." : error.message);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (password.length < 8) return fail("Use at least 8 characters for your password.");
     setLoading(true);
-
-    try {
-      if (!name || !email || !phoneNumber || !school) {
-        toast({
-          title: "Error",
-          description: "Please fill in all fields.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      // Generate Faculty ID using database function
-      const { data: facultyIdData, error: idError } = await supabase
-        .rpc("generate_faculty_id");
-
-      if (idError || !facultyIdData) {
-        toast({
-          title: "Error",
-          description: "Failed to generate Faculty ID. Please try again.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      const newFacultyId = facultyIdData;
-
-      // Insert into profiles table
-      const { error: insertError } = await supabase
-        .from("profiles")
-        .insert({
-          faculty_id: newFacultyId,
-          name,
-          email,
-          phone_number: phoneNumber,
-          school,
-          activated: false,
-          has_paid: false,
-        });
-
-      if (insertError) {
-        toast({
-          title: "Error",
-          description: "Failed to create account. Please try again.",
-          variant: "destructive",
-        });
-        setLoading(false);
-        return;
-      }
-
-      setGeneratedFacultyId(newFacultyId);
-      setShowSuccessModal(true);
-    } catch (error) {
-      toast({
-        title: "Error",
-        description: "An error occurred. Please try again.",
-        variant: "destructive",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleRequestFacultyId = () => {
-    const message = `Hello Tech Faculty Hub!
-
-I just signed up and need my Faculty ID activated.
-
-Name: ${name}
-Email: ${email}
-Phone: ${phoneNumber}
-School: ${school}
-Generated Faculty ID: ${generatedFacultyId}
-
-Please activate my account. Thank you!`;
-
-    const whatsappUrl = `https://wa.me/2348068597140?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, "_blank");
-    
-    toast({
-      title: "WhatsApp Opened",
-      description: "Please send the message to activate your account. You can login once activated.",
+    const { data, error } = await supabase.auth.signUp({
+      email: email.trim(),
+      password,
+      options: {
+        emailRedirectTo: `${window.location.origin}/chat`,
+        data: { full_name: fullName.trim(), phone: phone.trim(), school: school.trim() },
+      },
     });
+    setLoading(false);
+    if (error) return fail(error.message);
+    if (!data.session) setCheckEmail(true);
   };
 
-  const handleModalClose = () => {
-    setShowSuccessModal(false);
-    setName("");
-    setEmail("");
-    setPhoneNumber("");
-    setSchool("");
-    setIsSignUp(false);
+  const handleForgot = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: `${window.location.origin}/reset-password`,
+    });
+    setLoading(false);
+    if (error) return fail(error.message);
+    toast({ title: "Check your email", description: "We sent you a link to set a new password." });
+    setMode("signin");
   };
+
+  const handleGoogle = async () => {
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: `${window.location.origin}${from}` },
+    });
+    if (error) fail(error.message);
+  };
+
+  const title = mode === "signup" ? "Create your account" : mode === "forgot" ? "Reset your password" : "Welcome back";
+  const subtitle =
+    mode === "signup"
+      ? "Free to start: 3 tutor questions and 20 practice questions every day."
+      : mode === "forgot"
+        ? "Enter your email and we'll send you a reset link."
+        : "Sign in to keep practising.";
+
+  if (checkEmail) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4 bg-gradient-to-br from-primary/10 via-background to-accent/10">
+        <Card className="p-8 max-w-md text-center space-y-4">
+          <Mail className="h-12 w-12 text-primary mx-auto" />
+          <h1 className="text-2xl font-bold">Confirm your email</h1>
+          <p className="text-muted-foreground">
+            We sent a link to <span className="font-semibold">{email}</span>. Open it to finish creating your account.
+          </p>
+          <Button variant="outline" onClick={() => { setCheckEmail(false); setMode("signin"); }}>
+            Back to sign in
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
-    <>
-      <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
-        <div className="w-full max-w-md space-y-6">
-          <Button
-            variant="ghost"
-            onClick={() => navigate("/")}
-            className="mb-4"
+    <div className="min-h-screen bg-gradient-to-br from-primary/10 via-background to-accent/10 flex items-center justify-center p-4">
+      <div className="w-full max-w-md space-y-6">
+        <Button variant="ghost" onClick={() => navigate("/")} className="mb-2">
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Back to Home
+        </Button>
+
+        <div className="text-center space-y-2">
+          <h1 className="text-3xl font-bold">{title}</h1>
+          <p className="text-muted-foreground">{subtitle}</p>
+        </div>
+
+        <Card className="p-6 shadow-card space-y-5">
+          {mode !== "forgot" && (
+            <>
+              <Button type="button" variant="outline" size="lg" className="w-full gap-2" onClick={handleGoogle}>
+                <GoogleIcon />
+                Continue with Google
+              </Button>
+              <div className="flex items-center gap-3 text-xs text-muted-foreground">
+                <div className="h-px flex-1 bg-border" />
+                or use your email
+                <div className="h-px flex-1 bg-border" />
+              </div>
+            </>
+          )}
+
+          <form
+            onSubmit={mode === "signup" ? handleSignUp : mode === "forgot" ? handleForgot : handleSignIn}
+            className="space-y-4"
           >
-            <ArrowLeft className="mr-2 h-4 w-4" />
-            Back to Home
-          </Button>
-
-          <div className="text-center space-y-2">
-            <h1 className="text-3xl font-bold">
-              {isSignUp ? "Create Account" : "Welcome Back"}
-            </h1>
-            <p className="text-muted-foreground">
-              {isSignUp
-                ? "Register to get your Faculty ID"
-                : "Sign in with your Faculty ID"}
-            </p>
-          </div>
-
-          <Card className="p-6 shadow-card">
-            {!isSignUp ? (
-              <form onSubmit={handleLogin} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="facultyId">Faculty ID</Label>
-                  <div className="relative">
-                    <IdCard className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="facultyId"
-                      type="text"
-                      placeholder="FAC-12345"
-                      value={facultyId}
-                      onChange={(e) => setFacultyId(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={loading}
-                >
-                  {loading ? "Signing in..." : "Sign In"}
-                </Button>
-              </form>
-            ) : (
-              <form onSubmit={handleSignUp} className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="name">Full Name</Label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="name"
-                      type="text"
-                      placeholder="John Doe"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="email">Email Address</Label>
-                  <div className="relative">
-                    <Mail className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="your@email.com"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="phone">WhatsApp Phone Number</Label>
-                  <div className="relative">
-                    <Phone className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="+234 800 000 0000"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <div className="space-y-2">
-                  <Label htmlFor="school">School</Label>
-                  <div className="relative">
-                    <School className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="school"
-                      type="text"
-                      placeholder="University of Lagos"
-                      value={school}
-                      onChange={(e) => setSchool(e.target.value)}
-                      className="pl-10"
-                      required
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  size="lg"
-                  disabled={loading}
-                >
-                  {loading ? "Creating Account..." : "Create Account"}
-                </Button>
-              </form>
+            {mode === "signup" && (
+              <Field id="name" label="Full name" icon={User}>
+                <Input id="name" value={fullName} onChange={(e) => setFullName(e.target.value)} className="pl-10" placeholder="Chiamaka Okafor" required autoComplete="name" />
+              </Field>
             )}
 
-            <div className="text-center mt-6">
-              <button
-                type="button"
-                onClick={() => setIsSignUp(!isSignUp)}
-                className="text-sm text-primary hover:underline"
-              >
-                {isSignUp
-                  ? "Already have a Faculty ID? Sign in"
-                  : "Don't have a Faculty ID? Sign up"}
-              </button>
-            </div>
-          </Card>
-        </div>
-      </div>
+            <Field id="email" label="Email" icon={Mail}>
+              <Input id="email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} className="pl-10" placeholder="you@example.com" required autoComplete="email" />
+            </Field>
 
-      <Dialog open={showSuccessModal} onOpenChange={setShowSuccessModal}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle className="text-2xl text-center">
-              Registration Successful! 🎉
-            </DialogTitle>
-            <DialogDescription className="text-center pt-4">
-              Your Faculty ID: <span className="font-mono font-bold text-primary">{generatedFacultyId}</span>
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col space-y-4 py-4">
-            <div className="bg-primary/10 p-6 rounded-lg text-center">
-              <p className="text-muted-foreground mb-4">
-                Click the button below to send us your information via WhatsApp. 
-                We'll activate your account and you can then login.
-              </p>
-              <Button
-                size="lg"
-                className="w-full"
-                onClick={handleRequestFacultyId}
-              >
-                <MessageCircle className="mr-2 h-5 w-5" />
-                Request Activation via WhatsApp
-              </Button>
-            </div>
-            <div className="bg-blue-500/10 border border-blue-500/20 p-4 rounded-lg">
-              <p className="text-sm text-blue-700 dark:text-blue-300">
-                💡 Save your Faculty ID ({generatedFacultyId}). You'll use it to login once we activate your account.
-              </p>
-            </div>
+            {mode !== "forgot" && (
+              <Field id="password" label="Password" icon={Lock}>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="pl-10"
+                  placeholder={mode === "signup" ? "At least 8 characters" : "Your password"}
+                  required
+                  autoComplete={mode === "signup" ? "new-password" : "current-password"}
+                />
+              </Field>
+            )}
+
+            {mode === "signup" && (
+              <>
+                <Field id="phone" label="WhatsApp number (optional)" icon={Phone}>
+                  <Input id="phone" type="tel" value={phone} onChange={(e) => setPhone(e.target.value)} className="pl-10" placeholder="+234 800 000 0000" autoComplete="tel" />
+                </Field>
+                <Field id="school" label="School (optional)" icon={School}>
+                  <Input id="school" value={school} onChange={(e) => setSchool(e.target.value)} className="pl-10" placeholder="Your secondary school" />
+                </Field>
+              </>
+            )}
+
+            <Button type="submit" className="w-full" size="lg" disabled={loading}>
+              {loading ? "Please wait..." : mode === "signup" ? "Create account" : mode === "forgot" ? "Send reset link" : "Sign in"}
+            </Button>
+          </form>
+
+          {mode === "signin" && (
+            <button type="button" onClick={() => setMode("forgot")} className="block mx-auto text-sm text-muted-foreground hover:text-primary">
+              Forgot password?
+            </button>
+          )}
+
+          <div className="text-center text-sm">
+            {mode === "signup" ? (
+              <button type="button" onClick={() => setMode("signin")} className="text-primary hover:underline">
+                Already have an account? Sign in
+              </button>
+            ) : (
+              <button type="button" onClick={() => setMode("signup")} className="text-primary hover:underline">
+                New here? Create a free account
+              </button>
+            )}
           </div>
-        </DialogContent>
-      </Dialog>
-    </>
+
+          {mode === "signup" && (
+            <p className="text-xs text-center text-muted-foreground">
+              Had a Faculty ID before? Sign up with the same email and we'll move your account over.
+              By continuing you agree to our <a href="/privacy" className="text-primary hover:underline">Privacy Policy</a>.
+            </p>
+          )}
+        </Card>
+      </div>
+    </div>
   );
 };
+
+const Field = ({ id, label, icon: Icon, children }: { id: string; label: string; icon: typeof Mail; children: React.ReactNode }) => (
+  <div className="space-y-2">
+    <Label htmlFor={id}>{label}</Label>
+    <div className="relative">
+      <Icon className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
+      {children}
+    </div>
+  </div>
+);
 
 export default Auth;
