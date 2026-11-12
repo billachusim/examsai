@@ -1,62 +1,40 @@
--- ExamsAi real backend (2026-11-12)
--- Replaces the Faculty-ID-in-the-browser model with Supabase Auth, locks every
--- table to its owner, and adds the question bank, attempts, tutor history,
--- daily usage, entitlements and payments that the web and mobile apps share.
--- All writes that matter (marking, limits, premium) happen in edge functions
--- with the service role. Clients can only read their own rows.
-
--- ---------------------------------------------------------------------------
--- 1. Retire the old open tables (keep the data, close access)
--- ---------------------------------------------------------------------------
-alter table if exists public.daily_questions rename to legacy_daily_questions;
-alter table if exists public.profiles rename to legacy_profiles;
-
-drop policy if exists "Users can view own profile" on public.legacy_profiles;
-drop policy if exists "Anyone can create profile" on public.legacy_profiles;
-drop policy if exists "Users can update own profile" on public.legacy_profiles;
-drop policy if exists "Allow read access to profiles" on public.legacy_profiles;
-drop policy if exists "Users can view own questions" on public.legacy_daily_questions;
-drop policy if exists "Users can track own questions" on public.legacy_daily_questions;
-drop policy if exists "Allow read access to daily questions" on public.legacy_daily_questions;
-drop policy if exists "Allow tracking questions" on public.legacy_daily_questions;
-
-alter table if exists public.legacy_profiles enable row level security;
-alter table if exists public.legacy_daily_questions enable row level security;
-revoke all on public.legacy_profiles from anon, authenticated;
-revoke all on public.legacy_daily_questions from anon, authenticated;
-
--- generate_faculty_id is still used for display IDs, but only by the server.
+drop policy if exists "Users can view own profile" on public.profiles;
+drop policy if exists "Anyone can create profile" on public.profiles;
+drop policy if exists "Users can update own profile" on public.profiles;
+drop policy if exists "Allow read access to profiles" on public.profiles;
+drop policy if exists "Users can view own questions" on public.daily_questions;
+drop policy if exists "Users can track own questions" on public.daily_questions;
+drop policy if exists "Allow read access to daily questions" on public.daily_questions;
+drop policy if exists "Allow tracking questions" on public.daily_questions;
+revoke all on public.daily_questions from anon, authenticated;
+grant all on public.daily_questions to service_role;
+comment on table public.daily_questions is 'DEPRECATED: replaced by daily_usage';
 revoke execute on function public.generate_faculty_id() from public, anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- 2. Profiles, one per auth user
--- ---------------------------------------------------------------------------
-create table public.profiles (
-  id uuid primary key references auth.users(id) on delete cascade,
-  faculty_id text unique not null,
-  full_name text not null default '',
-  phone text,
-  school text,
-  exam_target text not null default 'JAMB' check (exam_target in ('JAMB', 'WAEC', 'NECO')),
-  subjects text[] not null default '{}',
-  legacy_faculty_id text,
-  created_at timestamptz not null default now(),
-  updated_at timestamptz not null default now()
-);
+alter table public.profiles
+  add column if not exists full_name text not null default '',
+  add column if not exists phone text,
+  add column if not exists exam_target text not null default 'JAMB' check (exam_target in ('JAMB', 'WAEC', 'NECO')),
+  add column if not exists subjects text[] not null default '{}',
+  add column if not exists legacy_faculty_id text,
+  add column if not exists updated_at timestamptz not null default now();
+alter table public.profiles alter column name set default '';
+alter table public.profiles alter column email set default '';
+alter table public.profiles alter column phone_number set default '';
+alter table public.profiles alter column school set default '';
+update public.profiles set full_name = name, phone = phone_number where full_name = '';
+comment on column public.profiles.name is 'DEPRECATED: replaced by full_name';
+comment on column public.profiles.phone_number is 'DEPRECATED: replaced by phone';
 
 alter table public.profiles enable row level security;
-
 create policy "profiles_select_own" on public.profiles
   for select to authenticated using (id = auth.uid());
-
 create policy "profiles_update_own" on public.profiles
   for update to authenticated using (id = auth.uid()) with check (id = auth.uid());
-
--- Users may edit only these columns. faculty_id and legacy links stay server-side.
-revoke all on public.profiles from anon;
-revoke insert, update, delete on public.profiles from authenticated;
+revoke all on public.profiles from anon, authenticated;
 grant select on public.profiles to authenticated;
 grant update (full_name, phone, school, exam_target, subjects) on public.profiles to authenticated;
+grant all on public.profiles to service_role;
 
 create or replace function public.touch_updated_at()
 returns trigger language plpgsql set search_path = public as $$
@@ -65,29 +43,26 @@ begin
   return new;
 end;
 $$;
-
+drop trigger if exists profiles_touch on public.profiles;
 create trigger profiles_touch before update on public.profiles
   for each row execute function public.touch_updated_at();
 
--- ---------------------------------------------------------------------------
--- 3. Entitlements and payments (written only by edge functions)
--- ---------------------------------------------------------------------------
 create table public.entitlements (
-  user_id uuid primary key references auth.users(id) on delete cascade,
+  user_id uuid primary key,
   plan text not null,
   expires_at timestamptz not null,
   source text not null check (source in ('flutterwave', 'google_play', 'app_store', 'legacy', 'admin')),
   updated_at timestamptz not null default now()
 );
-
+grant select on public.entitlements to authenticated;
+grant all on public.entitlements to service_role;
 alter table public.entitlements enable row level security;
 create policy "entitlements_select_own" on public.entitlements
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.entitlements from anon, authenticated;
 
 create table public.payments (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid references auth.users(id) on delete set null,
+  user_id uuid,
   provider text not null check (provider in ('flutterwave', 'google_play', 'app_store')),
   reference text not null,
   plan text not null,
@@ -100,12 +75,11 @@ create table public.payments (
   updated_at timestamptz not null default now(),
   unique (provider, reference)
 );
-
+grant select on public.payments to authenticated;
+grant all on public.payments to service_role;
 alter table public.payments enable row level security;
 create policy "payments_select_own" on public.payments
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.payments from anon, authenticated;
-
 create trigger payments_touch before update on public.payments
   for each row execute function public.touch_updated_at();
 
@@ -116,10 +90,9 @@ returns boolean language sql stable security definer set search_path = public as
     where e.user_id = uid and e.expires_at > now()
   );
 $$;
-revoke execute on function public.is_premium(uuid) from public, anon, authenticated;
-grant execute on function public.is_premium(uuid) to service_role;
+revoke execute on function public.is_premium(uuid) from public, anon;
+grant execute on function public.is_premium(uuid) to authenticated, service_role;
 
--- Extends (never shortens) a user's premium. Called by payment functions.
 create or replace function public.grant_premium(uid uuid, p_plan text, p_days integer, p_source text)
 returns timestamptz language plpgsql security definer set search_path = public as $$
 declare
@@ -139,60 +112,62 @@ $$;
 revoke execute on function public.grant_premium(uuid, text, integer, text) from public, anon, authenticated;
 grant execute on function public.grant_premium(uuid, text, integer, text) to service_role;
 
--- ---------------------------------------------------------------------------
--- 4. New-user trigger: create profile, link legacy Faculty ID account by email
--- ---------------------------------------------------------------------------
 create or replace function public.handle_new_user()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare
   legacy record;
   meta jsonb := coalesce(new.raw_user_meta_data, '{}'::jsonb);
 begin
-  select * into legacy from public.legacy_profiles lp
+  select * into legacy from public.profiles lp
   where new.email is not null and lower(lp.email) = lower(new.email)
+    and not exists (select 1 from auth.users u where u.id = lp.id)
   order by lp.created_at desc limit 1;
 
-  insert into public.profiles (id, faculty_id, full_name, phone, school, legacy_faculty_id)
-  values (
-    new.id,
-    coalesce(legacy.faculty_id, public.generate_faculty_id()),
-    coalesce(nullif(meta->>'full_name', ''), nullif(meta->>'name', ''), legacy.name, ''),
-    coalesce(nullif(meta->>'phone', ''), legacy.phone_number),
-    coalesce(nullif(meta->>'school', ''), legacy.school),
-    legacy.faculty_id
-  );
-
-  -- Carry over premium that a legacy student paid for and that is still running.
-  if legacy.faculty_id is not null and legacy.has_paid
-     and legacy.subscription_expires_at is not null
-     and legacy.subscription_expires_at > now() then
-    insert into public.entitlements (user_id, plan, expires_at, source)
-    values (new.id, coalesce(legacy.subscription_type, 'monthly'), legacy.subscription_expires_at, 'legacy')
-    on conflict (user_id) do nothing;
+  if legacy.id is not null then
+    update public.profiles set
+      id = new.id,
+      full_name = coalesce(nullif(meta->>'full_name', ''), nullif(meta->>'name', ''), legacy.name, ''),
+      phone = coalesce(nullif(meta->>'phone', ''), legacy.phone_number),
+      school = coalesce(nullif(meta->>'school', ''), legacy.school),
+      legacy_faculty_id = legacy.faculty_id
+    where id = legacy.id;
+    if legacy.has_paid and legacy.subscription_expires_at is not null
+       and legacy.subscription_expires_at > now() then
+      insert into public.entitlements (user_id, plan, expires_at, source)
+      values (new.id, coalesce(legacy.subscription_type, 'monthly'), legacy.subscription_expires_at, 'legacy')
+      on conflict (user_id) do nothing;
+    end if;
+  else
+    insert into public.profiles (id, faculty_id, full_name, name, email, phone, phone_number, school)
+    values (
+      new.id, public.generate_faculty_id(),
+      coalesce(nullif(meta->>'full_name', ''), nullif(meta->>'name', ''), ''),
+      coalesce(nullif(meta->>'full_name', ''), nullif(meta->>'name', ''), ''),
+      coalesce(new.email, ''),
+      nullif(meta->>'phone', ''), coalesce(meta->>'phone', ''),
+      coalesce(meta->>'school', '')
+    );
   end if;
-
   return new;
 end;
 $$;
+revoke execute on function public.handle_new_user() from public, anon, authenticated;
 
 drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
 
--- ---------------------------------------------------------------------------
--- 5. Question bank (no client access: answers must never leak)
--- ---------------------------------------------------------------------------
 create table public.subjects (
   slug text primary key,
   name text not null,
   exams text[] not null default '{JAMB,WAEC,NECO}',
   sort_order integer not null default 0
 );
-
+grant select on public.subjects to anon, authenticated;
+grant all on public.subjects to service_role;
 alter table public.subjects enable row level security;
 create policy "subjects_read_all" on public.subjects for select to anon, authenticated using (true);
-revoke insert, update, delete on public.subjects from anon, authenticated;
 
 insert into public.subjects (slug, name, sort_order) values
   ('english', 'Use of English', 1),
@@ -218,7 +193,7 @@ create table public.questions (
   exam text not null default 'JAMB',
   year integer,
   stem text not null,
-  options jsonb not null,           -- [{"key":"A","text":"..."}, ...]
+  options jsonb not null,
   answer text not null check (answer in ('A', 'B', 'C', 'D', 'E')),
   explanation text not null default '',
   difficulty text not null default 'medium' check (difficulty in ('easy', 'medium', 'hard')),
@@ -229,17 +204,13 @@ create table public.questions (
   created_at timestamptz not null default now(),
   unique (subject_slug, stem_hash)
 );
-
+grant all on public.questions to service_role;
 create index questions_subject_idx on public.questions (subject_slug, exam, topic);
 alter table public.questions enable row level security;
-revoke all on public.questions from anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- 6. Attempts (practice sessions and mock exams), marked server-side
--- ---------------------------------------------------------------------------
 create table public.attempts (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   mode text not null check (mode in ('practice', 'mock')),
   exam text not null default 'JAMB',
   subjects text[] not null,
@@ -250,17 +221,17 @@ create table public.attempts (
   score integer,
   total integer not null
 );
-
+grant select on public.attempts to authenticated;
+grant all on public.attempts to service_role;
 create index attempts_user_idx on public.attempts (user_id, started_at desc);
 alter table public.attempts enable row level security;
 create policy "attempts_select_own" on public.attempts
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.attempts from anon, authenticated;
 
 create table public.attempt_answers (
   attempt_id uuid not null references public.attempts(id) on delete cascade,
   question_id uuid not null references public.questions(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   subject_slug text not null,
   topic text,
   chosen text,
@@ -268,46 +239,41 @@ create table public.attempt_answers (
   answered_at timestamptz not null default now(),
   primary key (attempt_id, question_id)
 );
-
+grant select on public.attempt_answers to authenticated;
+grant all on public.attempt_answers to service_role;
 create index attempt_answers_user_idx on public.attempt_answers (user_id, subject_slug);
 alter table public.attempt_answers enable row level security;
 create policy "attempt_answers_select_own" on public.attempt_answers
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.attempt_answers from anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- 7. AI tutor history and daily usage
--- ---------------------------------------------------------------------------
 create table public.tutor_messages (
   id uuid primary key default gen_random_uuid(),
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   subject_slug text not null,
   role text not null check (role in ('user', 'assistant')),
   content text not null,
   created_at timestamptz not null default now()
 );
-
+grant select on public.tutor_messages to authenticated;
+grant all on public.tutor_messages to service_role;
 create index tutor_messages_user_idx on public.tutor_messages (user_id, subject_slug, created_at);
 alter table public.tutor_messages enable row level security;
 create policy "tutor_messages_select_own" on public.tutor_messages
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.tutor_messages from anon, authenticated;
 
 create table public.daily_usage (
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   day date not null default (now() at time zone 'Africa/Lagos')::date,
   tutor_messages integer not null default 0,
   practice_questions integer not null default 0,
   primary key (user_id, day)
 );
-
+grant select on public.daily_usage to authenticated;
+grant all on public.daily_usage to service_role;
 alter table public.daily_usage enable row level security;
 create policy "daily_usage_select_own" on public.daily_usage
   for select to authenticated using (user_id = auth.uid());
-revoke insert, update, delete on public.daily_usage from anon, authenticated;
 
--- Atomically checks and consumes daily allowance. Returns the new count, or -1
--- when the limit would be exceeded. p_limit < 0 means unlimited.
 create or replace function public.consume_usage(uid uuid, p_kind text, p_amount integer, p_limit integer)
 returns integer language plpgsql security definer set search_path = public as $$
 declare
@@ -345,9 +311,6 @@ $$;
 revoke execute on function public.consume_usage(uuid, text, integer, integer) from public, anon, authenticated;
 grant execute on function public.consume_usage(uuid, text, integer, integer) to service_role;
 
--- ---------------------------------------------------------------------------
--- 8. Leaderboard: first name, school and score only (last 30 days)
--- ---------------------------------------------------------------------------
 create or replace function public.get_leaderboard(p_limit integer default 20)
 returns table (rank bigint, first_name text, school text, correct bigint, answered bigint, accuracy integer, is_me boolean)
 language sql stable security definer set search_path = public as $$
@@ -375,19 +338,15 @@ $$;
 revoke execute on function public.get_leaderboard(integer) from public;
 grant execute on function public.get_leaderboard(integer) to anon, authenticated;
 
--- ---------------------------------------------------------------------------
--- 9. Question reports (one per student per question)
--- ---------------------------------------------------------------------------
 create table public.question_reports (
   question_id uuid not null references public.questions(id) on delete cascade,
-  user_id uuid not null references auth.users(id) on delete cascade,
+  user_id uuid not null,
   reason text,
   created_at timestamptz not null default now(),
   primary key (question_id, user_id)
 );
-
+grant all on public.question_reports to service_role;
 alter table public.question_reports enable row level security;
-revoke all on public.question_reports from anon, authenticated;
 
 create or replace function public.report_question(p_question_id uuid, p_user_id uuid, p_reason text)
 returns void language plpgsql security definer set search_path = public as $$
