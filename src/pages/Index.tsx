@@ -1,5 +1,6 @@
 import { Hero } from "@/components/Hero";
 import { HowItWorks } from "@/components/HowItWorks";
+import { ForParents } from "@/components/ForParents";
 import { Pricing } from "@/components/Pricing";
 import { GetStarted } from "@/components/GetStarted";
 import { Footer } from "@/components/Footer";
@@ -52,6 +53,7 @@ const Index = () => {
       </section>
       
       <HowItWorks />
+      <ForParents />
       <Pricing />
       <GetStarted />
       <Footer />
