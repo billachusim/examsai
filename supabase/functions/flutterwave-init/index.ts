@@ -5,7 +5,7 @@ import { adminClient, requireUser } from "../_shared/supabase.ts";
 import { PLANS, type PlanId } from "../_shared/config.ts";
 import { flwFetch } from "../_shared/flutterwave.ts";
 
-const DEFAULT_SITE = Deno.env.get("EXAMSAI_SITE_URL") ?? "https://examsai.lovable.app";
+const DEFAULT_SITE = Deno.env.get("EXAMSAI_SITE_URL") ?? "https://examsai.ng";
 
 Deno.serve(handler(async (req) => {
   const admin = adminClient();

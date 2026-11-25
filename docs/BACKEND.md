@@ -15,7 +15,7 @@ matters (limits, marking, premium) happens inside the functions.
    - `FLW_SECRET_KEY` (or `FLUTTERWAVE_SECRET_KEY`): Flutterwave secret key (live).
    - `FLW_WEBHOOK_HASH` (or `FLUTTERWAVE_WEBHOOK_HASH` / `FLW_SECRET_HASH`): any long random string; put the same in Flutterwave >
      Settings > Webhooks, with URL `https://qmshqibcpetahlmcacjw.supabase.co/functions/v1/flutterwave-webhook`.
-   - `EXAMSAI_SITE_URL`: the live site, e.g. `https://examsai.ng`.
+   - `EXAMSAI_SITE_URL`: the live site, `https://examsai.ng` (the default).
    - `LOVABLE_API_KEY` is provided by Lovable Cloud for the AI tutor.
 4. Publish.
 
