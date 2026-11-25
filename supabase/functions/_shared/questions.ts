@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.74.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.74.0";
 import { chatCompletion, parseModelJson, QUESTION_MODEL } from "./ai.ts";
 import { SUBJECT_NAMES } from "./config.ts";
 

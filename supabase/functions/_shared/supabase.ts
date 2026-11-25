@@ -1,4 +1,4 @@
-import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@2.74.0";
+import { createClient, type SupabaseClient, type User } from "npm:@supabase/supabase-js@^2.74.0";
 import { HttpError } from "./cors.ts";
 
 export function adminClient(): SupabaseClient {

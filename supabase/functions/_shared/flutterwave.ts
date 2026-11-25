@@ -1,4 +1,4 @@
-import type { SupabaseClient } from "npm:@supabase/supabase-js@2.74.0";
+import type { SupabaseClient } from "npm:@supabase/supabase-js@^2.74.0";
 import { HttpError } from "./cors.ts";
 import { PLANS, type PlanId } from "./config.ts";
 
